@@ -5,9 +5,34 @@ description: Bump version/build number, archive an Xcode project, and upload to 
 
 # Xcode Archive & Release
 
-Workflow: bump versions in source → archive with xcodebuild → export + upload to App Store Connect.
+Release an Apple app by bumping version/build metadata, archiving with Xcode, then exporting and uploading to App Store Connect.
 
-The main script is `scripts/xcode-release.sh`. The bundled `assets/ExportOptions-AppStore.plist` sets `method=app-store` and `destination=upload` (direct ASC upload, no separate altool step needed).
+## Use when
+
+- The user wants to archive and upload an iOS or macOS app to App Store Connect
+- The user wants to release from an explicit version/build or infer them from a git tag
+- The user needs to retry an upload without rebuilding unless necessary
+
+## Prerequisites
+
+- macOS with Xcode and `xcodebuild` available
+- A signed Xcode project with a valid scheme
+- Access to the correct Apple Developer team and App Store Connect account
+- A clean understanding of the target project, scheme, platform, version, and build number
+
+The main helper is `scripts/xcode-release.sh`. The bundled `assets/ExportOptions-AppStore.plist` sets `method=app-store` and `destination=upload`, so the default flow uploads directly to App Store Connect without a separate `altool` step.
+
+## Confirm before acting
+
+Before running the script, confirm:
+
+- the Xcode project path
+- the scheme name
+- the version and build number, or that git tag inference is intended
+- the target platform: `ios` or `macos`
+- whether the user wants a preflight-only validation run first
+
+For mixed-target or higher-risk projects, prefer a dry run with `--preflight-only` before touching source files.
 
 ## Workflow
 
@@ -46,7 +71,7 @@ Ask for confirmation, then proceed.
 
 ### 3. Run the script
 
-Make the script executable, then run it:
+Run the bundled script:
 
 ```bash
 chmod +x path/to/skills/xcode-archive-release/scripts/xcode-release.sh
@@ -83,12 +108,23 @@ If the tag is ambiguous or missing a component, the script errors with a message
 
 ### 4. Report results
 
-On success, the script prints the artifacts path. Tell the user:
+On success, the script prints the artifact path. Tell the user:
 
 - Where artifacts are: `~/.xcode-archive/<project-name>/<version>-<build>/`
 - To check App Store Connect → TestFlight or the Builds tab to confirm the upload processed
 
 If the archive succeeds but automatic export/upload hits a missing App Store provisioning profile for the app’s bundle ID, the script opens the `.xcarchive` in Xcode Organizer instead. In that case, tell the user the archive is ready and they should upload it to App Store Connect manually from Organizer.
+
+## Output
+
+Successful runs produce:
+
+- a versioned archive folder at `~/.xcode-archive/<ProjectName>/<version>-<build>/`
+- the `.xcarchive`
+- exported artifacts under `export/`
+- logs under `logs/archive.log` and `logs/export.log`
+
+The user should verify the build appears in App Store Connect after processing finishes.
 
 ## Retry a Failed Upload
 
@@ -114,6 +150,11 @@ If the archive succeeded but upload failed (network issue, ASC outage, etc.):
 ```
 
 Each run has its own versioned folder — previous builds are preserved for comparison or re-upload.
+
+## Bundled files
+
+- `scripts/xcode-release.sh` — main release workflow
+- `assets/ExportOptions-AppStore.plist` — default App Store export settings
 
 ## Troubleshooting
 
