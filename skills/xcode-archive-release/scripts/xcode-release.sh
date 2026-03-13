@@ -357,24 +357,54 @@ log "─────────────────────────
 bump_versions() {
   log "Bumping versions → $VERSION ($BUILD)…"
 
-  # Patch project.pbxproj (the reliable source of truth in modern Xcode projects)
-  while IFS= read -r -d '' pbxproj; do
-    log "  Patching $pbxproj"
-    sed -i '' "s/MARKETING_VERSION = [^;]*/MARKETING_VERSION = ${VERSION}/" "$pbxproj"
-    sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = ${BUILD}/" "$pbxproj"
-  done < <(find "$PROJECT_DIR" -name "project.pbxproj" -print0)
+  local pbxproj="${PROJECT}/project.pbxproj"
+  [[ -f "$pbxproj" ]] || err "project.pbxproj not found: $pbxproj"
 
-  # Patch Info.plist files (present in older / pre-Xcode-13 projects)
-  while IFS= read -r -d '' plist; do
-    # Skip plists inside the archive or DerivedData we may have created
-    [[ "$plist" == *".xcarchive"* ]] && continue
-    [[ "$plist" == *"DerivedData"* ]] && continue
+  # Patch only the selected app project's pbxproj. Broad directory scans can hit
+  # SwiftPM checkouts or generated build trees with read-only files.
+  log "  Patching $pbxproj"
+  sed -i '' "s/MARKETING_VERSION = [^;]*/MARKETING_VERSION = ${VERSION}/" "$pbxproj"
+  sed -i '' "s/CURRENT_PROJECT_VERSION = [^;]*/CURRENT_PROJECT_VERSION = ${BUILD}/" "$pbxproj"
+
+  # Patch only Info.plist files explicitly referenced by this project.
+  local -a plists=()
+  local raw_plist resolved_plist
+  while IFS= read -r raw_plist; do
+    [[ -z "$raw_plist" ]] && continue
+    resolved_plist="$raw_plist"
+    resolved_plist="${resolved_plist%\"}"
+    resolved_plist="${resolved_plist#\"}"
+    resolved_plist="${resolved_plist//\$(SRCROOT)/$PROJECT_DIR}"
+    resolved_plist="${resolved_plist//\${SRCROOT}/$PROJECT_DIR}"
+    resolved_plist="${resolved_plist//\$(PROJECT_DIR)/$PROJECT_DIR}"
+    resolved_plist="${resolved_plist//\${PROJECT_DIR}/$PROJECT_DIR}"
+
+    # Skip unresolved build-setting expressions instead of guessing.
+    if [[ "$resolved_plist" == *'$('* || "$resolved_plist" == *'${'* ]]; then
+      log "  Skipping unresolved Info.plist path: $raw_plist"
+      continue
+    fi
+
+    if [[ "$resolved_plist" != /* ]]; then
+      resolved_plist="${PROJECT_DIR}/${resolved_plist}"
+    fi
+
+    [[ -f "$resolved_plist" ]] || continue
+    plists+=("$resolved_plist")
+  done < <(
+    grep -Eo 'INFOPLIST_FILE = [^;]+' "$pbxproj" \
+      | sed -E 's/^INFOPLIST_FILE = //; s/[[:space:]]+$//' \
+      | sort -u
+  )
+
+  local plist
+  for plist in "${plists[@]+"${plists[@]}"}"; do
     if /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$plist" &>/dev/null; then
       log "  Patching $plist"
       /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${VERSION}" "$plist"
       /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${BUILD}" "$plist"
     fi
-  done < <(find "$PROJECT_DIR" -name "Info.plist" -print0)
+  done
 
   log "Version bump complete."
 }
