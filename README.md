@@ -52,6 +52,7 @@ Every public skill lives in `skills/<slug>/`. The only required file is `SKILL.m
 
 | Skill | Purpose | Requirements | Status |
 | --- | --- | --- | --- |
+| `plan-driven-change` | Approval-gated, plan-first workflow for larger multi-file or architectural changes | Project docs, known build/lint/test commands, user approval before implementation | Stable |
 | `xcode-archive-release` | Bump app version/build, archive an Xcode project, and upload to App Store Connect | macOS, Xcode, Apple Developer account, signed project | Stable |
 
 ## Authoring rules
