@@ -104,6 +104,7 @@ if [[ -n "$BUMP" && ( -n "$VERSION" || -n "$BUILD" ) ]]; then
 fi
 
 [[ -d "$PROJECT" ]]  || err "Project not found: $PROJECT"
+PROJECT="$(cd "$PROJECT" && pwd)"
 
 case "$PLATFORM" in
   ios)   DESTINATION="generic/platform=iOS"   ;;
@@ -314,7 +315,7 @@ run_preflight() {
 
 # ── resolve paths ─────────────────────────────────────────────────────────────
 
-PROJECT_DIR="$(dirname "$PROJECT")"
+PROJECT_DIR="$(cd "$(dirname "$PROJECT")" && pwd)"
 PROJECT_NAME="$(basename "$PROJECT" .xcodeproj)"
 
 # Infer version/build: git tag on HEAD → archive history → error
@@ -390,11 +391,18 @@ bump_versions() {
     fi
 
     [[ -f "$resolved_plist" ]] || continue
-    plists+=("$resolved_plist")
+    local seen=0
+    local existing_plist
+    for existing_plist in "${plists[@]+"${plists[@]}"}"; do
+      if [[ "$existing_plist" == "$resolved_plist" ]]; then
+        seen=1
+        break
+      fi
+    done
+    [[ $seen -eq 1 ]] || plists+=("$resolved_plist")
   done < <(
-    grep -Eo 'INFOPLIST_FILE = [^;]+' "$pbxproj" \
-      | sed -E 's/^INFOPLIST_FILE = //; s/[[:space:]]+$//' \
-      | sort -u
+    grep -E 'INFOPLIST_FILE(\[[^]]+\])?[[:space:]]*=' "$pbxproj" \
+      | sed -E 's/^[[:space:]]*INFOPLIST_FILE(\[[^]]+\])?[[:space:]]*=[[:space:]]*//; s/;[[:space:]]*$//'
   )
 
   local plist
