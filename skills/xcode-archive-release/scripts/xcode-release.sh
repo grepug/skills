@@ -7,7 +7,7 @@
 #                    [--export-plist /path/to/ExportOptions.plist] \
 #                    [--force] [--preflight-only]
 
-set -euo pipefail
+set -Eeuo pipefail
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,6 +48,19 @@ EOF
 
 log()  { echo "[xcode-release] $*"; }
 err()  { echo "[xcode-release] ERROR: $*" >&2; exit 1; }
+
+build_retry_cmd() {
+  RETRY_CMD="$(basename "$0") --project \"$PROJECT\" --scheme \"$SCHEME\" --version \"${VERSION:-?}\" --build \"${BUILD:-?}\" --platform \"${PLATFORM:-?}\""
+  if [[ -n "$EXPORT_PLIST" ]]; then
+    RETRY_CMD="${RETRY_CMD} --export-plist \"$EXPORT_PLIST\""
+  fi
+  if [[ $FORCE -eq 1 ]]; then
+    RETRY_CMD="${RETRY_CMD} --force"
+  fi
+  if [[ $PREFLIGHT_ONLY -eq 1 ]]; then
+    RETRY_CMD="${RETRY_CMD} --preflight-only"
+  fi
+}
 
 open_archive_in_xcode() {
   local archive_path="$1"
@@ -225,6 +238,7 @@ infer_from_archives() {
 # ── step tracking + failure trap ─────────────────────────────────────────────
 
 CURRENT_STEP="init"
+RETRY_CMD=""
 
 on_error() {
   echo ""
@@ -241,8 +255,8 @@ on_error() {
     tail -20 "$log_file" | sed 's/^/    /'
   fi
   log "  Retry command:"
-  # shellcheck disable=SC2153
-  log "    $(basename "$0") --project \"${PROJECT}\" --scheme \"${SCHEME}\" --version \"${VERSION:-?}\" --build \"${BUILD:-?}\" --platform \"${PLATFORM:-?}\""
+  build_retry_cmd
+  log "    ${RETRY_CMD}"
   log "──────────────────────────────────────────"
 }
 
@@ -528,7 +542,7 @@ run_archive() {
     archive 2>&1 | tee "$log_file"
 
   # tee masks xcodebuild exit code; check PIPESTATUS explicitly
-  [[ ${PIPESTATUS[0]} -eq 0 ]] || { log "xcodebuild archive failed (see $log_file)"; exit 1; }
+  [[ ${PIPESTATUS[0]} -eq 0 ]] || { log "xcodebuild archive failed (see $log_file)"; return 1; }
 
   log "Archive complete: $ARCHIVE_PATH"
 }
@@ -556,7 +570,7 @@ run_export_upload() {
       return 0
     fi
     log "xcodebuild export failed (see $log_file)"
-    exit 1
+    return 1
   fi
 
   log "Upload complete."
@@ -605,6 +619,7 @@ run_single_platform_flow() {
 
 run_batch_flow() {
   local script_self="${SCRIPT_DIR}/$(basename "${BASH_SOURCE[0]}")"
+  local bash_bin="${BASH:-bash}"
   local platform_item marker
   local successes=0 failures=0 skipped=0
   local -a summary_lines=()
@@ -627,6 +642,7 @@ run_batch_flow() {
     log "=== Running platform: ${platform_item} ==="
 
     child_cmd=(
+      "$bash_bin"
       "$script_self"
       --project "$PROJECT"
       --scheme "$SCHEME"

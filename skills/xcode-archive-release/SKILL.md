@@ -134,8 +134,9 @@ The user should verify the build appears in App Store Connect after processing f
 
 If one platform in a batch fails (network issue, ASC outage, etc.):
 
-1. Run the **exact same command** — already completed platforms are skipped, and incomplete platforms are retried in sequence.
-2. Use `--force` only if you need to rebuild all listed platforms from scratch (e.g. wrong code was archived).
+1. If the original run already pinned version/build explicitly, or inferred them from a git tag, run the **exact same command** — already completed platforms are skipped, and incomplete platforms are retried in sequence.
+2. If the original run inferred version/build from archive history, use the retry command printed on failure instead. That retry command pins the resolved `--version` and `--build`, so it retries the same release instead of advancing to the next build number.
+3. Use `--force` only if you need to rebuild all listed platforms from scratch (e.g. wrong code was archived).
 
 ## Output Folder Structure
 
