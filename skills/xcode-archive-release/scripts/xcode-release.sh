@@ -112,6 +112,11 @@ case "$PLATFORM" in
   *)     err "--platform must be 'ios' or 'macos' (got: $PLATFORM)" ;;
 esac
 
+PLATFORM_VARIANT="$PLATFORM"
+if [[ $CATALYST -eq 1 ]]; then
+  PLATFORM_VARIANT="${PLATFORM}-catalyst"
+fi
+
 # ── git tag inference ─────────────────────────────────────────────────────────
 
 TAG_SOURCE=""
@@ -329,10 +334,10 @@ if [[ -z "$VERSION" ]]; then
   fi
 fi
 RUN_DIR="${HOME}/.xcode-archive/${PROJECT_NAME}/${VERSION}-${BUILD}"
-ARCHIVE_PATH="${RUN_DIR}/${PROJECT_NAME}.xcarchive"
-DERIVED_DATA="${RUN_DIR}/DerivedData"
-EXPORT_PATH="${RUN_DIR}/export"
-LOGS_DIR="${RUN_DIR}/logs"
+ARCHIVE_PATH="${RUN_DIR}/${PROJECT_NAME}-${PLATFORM_VARIANT}.xcarchive"
+DERIVED_DATA="${RUN_DIR}/DerivedData-${PLATFORM_VARIANT}"
+EXPORT_PATH="${RUN_DIR}/export-${PLATFORM_VARIANT}"
+LOGS_DIR="${RUN_DIR}/logs-${PLATFORM_VARIANT}"
 
 # Bundled ExportOptions plist is next to this script in ../assets/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -349,6 +354,7 @@ log "  Scheme  : $SCHEME"
 log "  Version : $VERSION ($BUILD)${TAG_SOURCE}"
 log "  Platform: $PLATFORM ($DESTINATION)"
 log "  Catalyst: $([ $CATALYST -eq 1 ] && echo yes || echo no)"
+log "  Variant : $PLATFORM_VARIANT"
 log "  Archive : $ARCHIVE_PATH"
 log "  Export  : $EXPORT_PATH"
 log "──────────────────────────────────────────"

@@ -58,7 +58,8 @@ Scheme  : MyApp_iOS
 Version : 2.1.0  Build: 42
 Platform: ios (generic/platform=iOS)
 Catalyst: no
-Archive : ~/.xcode-archive/MyApp/2.1.0-42/MyApp.xcarchive
+Variant : ios
+Archive : ~/.xcode-archive/MyApp/2.1.0-42/MyApp-ios.xcarchive
 ```
 
 For complex or mixed-target projects (e.g. iOS + watchOS), run `--preflight-only` first to validate the scheme and export plist before any source files are touched:
@@ -113,6 +114,8 @@ On success, the script prints the artifact path. Tell the user:
 - Where artifacts are: `~/.xcode-archive/<project-name>/<version>-<build>/`
 - To check App Store Connect → TestFlight or the Builds tab to confirm the upload processed
 
+The platform variant is `ios` or `macos`, and becomes `ios-catalyst` when `--catalyst` is used. The script keeps the same version/build folder and makes the archive, export, DerivedData, and log names platform-specific.
+
 If the archive succeeds but automatic export/upload hits a missing App Store provisioning profile for the app’s bundle ID, the script opens the `.xcarchive` in Xcode Organizer instead. In that case, tell the user the archive is ready and they should upload it to App Store Connect manually from Organizer.
 
 ## Output
@@ -121,8 +124,8 @@ Successful runs produce:
 
 - a versioned archive folder at `~/.xcode-archive/<ProjectName>/<version>-<build>/`
 - the `.xcarchive`
-- exported artifacts under `export/`
-- logs under `logs/archive.log` and `logs/export.log`
+- exported artifacts under `export-<platform-variant>/`
+- logs under `logs-<platform-variant>/archive.log` and `logs-<platform-variant>/export.log`
 
 The user should verify the build appears in App Store Connect after processing finishes.
 
@@ -138,18 +141,23 @@ If the archive succeeded but upload failed (network issue, ASC outage, etc.):
 ```
 ~/.xcode-archive/<ProjectName>/
 └── <version>-<build>/              e.g. 2.1.0-42/
-    ├── MyApp.xcarchive             the Xcode archive
-    ├── DerivedData/                isolated DerivedData for this build
-    ├── export/                     export output
+    ├── MyApp-ios.xcarchive         iOS archive
+    ├── MyApp-macos.xcarchive       macOS archive when present
+    ├── MyApp-ios-catalyst.xcarchive Catalyst archive when present
+    ├── DerivedData-ios/            isolated DerivedData per platform variant
+    ├── DerivedData-macos/
+    ├── export-ios/                 export output
     │   ├── MyApp.ipa
     │   ├── ExportOptions.plist     copy of the options used
     │   └── UploadSessionLogs/      ASC upload diagnostic logs
-    └── logs/
-        ├── archive.log             full xcodebuild archive output
-        └── export.log              full xcodebuild -exportArchive output
+    ├── export-macos/
+    ├── logs-ios/
+    │   ├── archive.log             full xcodebuild archive output
+    │   └── export.log              full xcodebuild -exportArchive output
+    └── logs-macos/
 ```
 
-Each run has its own versioned folder — previous builds are preserved for comparison or re-upload.
+Each run has its own versioned folder, and each platform variant gets its own artifact names inside that folder. That lets the same version/build coexist across platforms without overwriting the archive.
 
 ## Bundled files
 
@@ -164,11 +172,11 @@ Each run has its own versioned folder — previous builds are preserved for comp
 | `error: exportArchive No profiles for '<bundle-id>' were found`       | Treat this as an Organizer handoff: open the generated `.xcarchive` in Xcode Organizer and tell the user to upload it to App Store Connect manually            |
 | `No schemes found`                                                    | Run `xcodebuild -project MyApp.xcodeproj -list` to list valid scheme names; or use `--preflight-only` to check before running                                  |
 | `ERROR ITMS-90189: Duplicate binary upload`                           | The build number already exists in ASC. Increment `--build`                                                                                                    |
-| `Archive not found` on retry                                          | Check the path `~/.xcode-archive/<name>/<version>-<build>/<name>.xcarchive` exists; if not, remove `--force` flag confusion and re-run without `--force`       |
+| `Archive not found` on retry                                          | Check the path `~/.xcode-archive/<name>/<version>-<build>/<name>-<platform-variant>.xcarchive` exists; if not, re-run with the same `--platform` and `--catalyst` flags used for the original archive |
 | `PlistBuddy: Entry, ":CFBundleShortVersionString", Does Not Exist`    | Harmless — the Info.plist doesn't have that key (modern Xcode projects); the `project.pbxproj` patch handles it                                                |
 | `No git tag on HEAD`                                                  | HEAD isn't tagged. Create a tag (`git tag v2.1.0-42 && git push --tags`) or pass `--version` and `--build` explicitly                                          |
 | `Tag(s) on HEAD ... don't contain one semver + one integer component` | Tag is missing the build number (e.g. `v2.1.0`) or has an unrecognised part (e.g. `release-2.1.0-42`). Rename the tag or pass `--version`/`--build` explicitly |
-| Script fails with `✗ FAILED at step: archive`                         | Check `~/.xcode-archive/<name>/<ver>-<build>/logs/archive.log` for the root cause; the failure block prints the last 20 lines automatically                    |
+| Script fails with `✗ FAILED at step: archive`                         | Check `~/.xcode-archive/<name>/<ver>-<build>/logs-<platform-variant>/archive.log` for the root cause; the failure block prints the last 20 lines automatically |
 
 ## ExportOptions Customization
 
