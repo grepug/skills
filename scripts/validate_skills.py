@@ -14,6 +14,7 @@ REQUIRED_ROOT_FILES = ("README.md", "CONTRIBUTING.md", "LICENSE")
 REQUIRED_FRONTMATTER_KEYS = ("name", "description")
 REFERENCE_PATTERN = re.compile(r"(?:^|[^A-Za-z0-9_./-])((?:scripts|assets|references)/[A-Za-z0-9._/-]+)")
 FRONTMATTER_PATTERN = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
+MAX_SKILL_NAME_LENGTH = 64
 
 
 def fail(errors: list[str], message: str) -> None:
@@ -64,6 +65,37 @@ def validate_skill(skill_dir: Path, errors: list[str]) -> None:
         value = frontmatter.get(key, "").strip()
         if not value:
             fail(errors, f"{skill_md.relative_to(ROOT)} is missing required frontmatter key: {key}")
+
+    name = frontmatter.get("name", "").strip()
+    if name:
+        if not re.fullmatch(r"[a-z0-9-]+", name):
+            fail(
+                errors,
+                f"{skill_md.relative_to(ROOT)} has invalid name '{name}': use hyphen-case with lowercase letters, digits, and hyphens only",
+            )
+        if name.startswith("-") or name.endswith("-") or "--" in name:
+            fail(
+                errors,
+                f"{skill_md.relative_to(ROOT)} has invalid name '{name}': names cannot start/end with hyphen or contain consecutive hyphens",
+            )
+        if len(name) > MAX_SKILL_NAME_LENGTH:
+            fail(
+                errors,
+                f"{skill_md.relative_to(ROOT)} has name that is too long ({len(name)} characters); maximum is {MAX_SKILL_NAME_LENGTH}",
+            )
+
+    description = frontmatter.get("description", "").strip()
+    if description:
+        if "<" in description or ">" in description:
+            fail(
+                errors,
+                f"{skill_md.relative_to(ROOT)} description cannot contain angle brackets (< or >)",
+            )
+        if len(description) > 1024:
+            fail(
+                errors,
+                f"{skill_md.relative_to(ROOT)} description is too long ({len(description)} characters); maximum is 1024",
+            )
 
     seen_references: set[str] = set()
     for match in REFERENCE_PATTERN.finditer(text):

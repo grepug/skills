@@ -1,0 +1,4 @@
+interface:
+  display_name: "Module Boundary Governance"
+  short_description: "Declare and audit module boundaries"
+  default_prompt: "Use $module-boundary-governance to choose or update a boundary manifest, map the change to owned layers, and run a boundary audit."

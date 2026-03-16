@@ -52,6 +52,7 @@ Every public skill lives in `skills/<slug>/`. The only required file is `SKILL.m
 
 | Skill | Purpose | Requirements | Status |
 | --- | --- | --- | --- |
+| `module-boundary-governance` | Define and audit module boundary manifests so larger changes keep clear ownership, public API, and dependency direction | Existing repo structure or architecture docs, boundary-sensitive change, and a planning workflow such as `plan-driven-change` | Stable |
 | `plan-driven-change` | Approval-gated, plan-first workflow for larger multi-file or architectural changes | Project docs, known build/lint/test commands, user approval before implementation | Stable |
 | `xcode-archive-release` | Bump app version/build, archive an Xcode project, and upload to App Store Connect | macOS, Xcode, Apple Developer account, signed project | Stable |
 
@@ -64,3 +65,15 @@ Every public skill lives in `skills/<slug>/`. The only required file is `SKILL.m
 - Start new skills from `templates/skill/`
 
 Detailed contribution guidance lives in `CONTRIBUTING.md`.
+
+## Validation
+
+For local validation:
+
+```bash
+# Validate one skill without extra Python packages
+python3 scripts/quick_validate_skill.py skills/<slug>
+
+# Validate the full catalog
+python3 scripts/validate_skills.py
+```

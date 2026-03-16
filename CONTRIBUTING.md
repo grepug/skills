@@ -41,6 +41,8 @@ Before opening a PR or merging locally, check:
 - The frontmatter is present and accurate
 - All relative file references resolve
 - Shell helpers pass `bash -n`
+- `python3 scripts/quick_validate_skill.py skills/<slug>` passes for the edited skill
+- `python3 scripts/validate_skills.py` passes for the full catalog
 - The root `README.md` catalog includes the new skill
 - The template is still representative of the current standard if conventions changed
 

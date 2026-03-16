@@ -1,11 +1,13 @@
 ---
 name: plan-driven-change
-description: "Approval-gated, plan-first workflow for larger code changes. Use when the user asks to build a new capability or make a non-trivial change that touches multiple files, crosses module boundaries, or involves architectural decisions. Do NOT use for bug fixes, one-line tweaks, dependency bumps, or small config changes. The workflow is: clarify intent -> user approves -> write a rich plan with interface stubs + checklist -> user approves -> implement with progress logging -> run a gap audit -> record tweaks."
+description: "Approval-gated, plan-first workflow for larger code changes. Use when the user asks to build a new capability or make a non-trivial change that touches multiple files, crosses module boundaries, or involves architectural decisions. Do NOT use for bug fixes, one-line tweaks, dependency bumps, or small config changes. The workflow is: clarify intent, get user approval, write a rich plan with interface stubs and checklist, get user approval again, implement with progress logging, run a gap audit, and record tweaks."
 ---
 
 # Plan-Driven Change
 
 Plan-first development cycle for larger changes. Combines brainstorming-style intent review with a tracked plan document and explicit implementation traceability.
+
+If the change creates or reshapes module boundaries, introduces a new nested layer, changes public entrypoints, touches multiple layers where responsibilities may blur, or is happening in a repo with weak or duplicated boundary docs, load `module-boundary-governance` before finalizing the plan.
 
 ## When to Use
 
@@ -22,8 +24,20 @@ Before starting, quickly orient to the project:
 - Where does the project store plans or design docs? Check for `docs/`, `docs/plans/`, `docs/rfcs/`, `docs/decisions/`, `.github/`, `planning/`, or similar. If none found, default to `docs/plans/`.
 - What are the build, lint, and test commands? Check `package.json`, `Makefile`, `README`, `justfile`, `pyproject.toml`, or CI config.
 - What language(s) and conventions does the project use for interfaces and types?
+- Does the project already define module boundaries, public entrypoints, or ownership docs? Check for boundary manifests, architecture docs, rules docs, or module readmes.
 
 Use these findings throughout the workflow — don't hardcode assumptions.
+
+### Boundary-sensitive changes
+
+Load `module-boundary-governance` when any of these are true:
+
+- a new module root is being created
+- a new nested layer is being introduced
+- code is moving across declared layers
+- public entrypoints are being added, removed, or widened
+- the change touches multiple layers where ownership could become ambiguous
+- the repo has weak, prose-only, or duplicated boundary rules that need an adoption audit
 
 ## Phase 1: Intent Brainstorm (no code, no files yet)
 
@@ -113,6 +127,27 @@ method(input):
 
 ---
 
+## Boundary  <!-- required for boundary-sensitive changes -->
+
+<!-- Include this section whenever module-boundary-governance applies.
+     State the owning manifest, affected layers, whether the manifest changes,
+     whether the public surface changes, and the main risk of boundary drift. -->
+
+Owning manifest: `path/to/boundary.manifest.yml`
+
+Affected layers:
+- `<layer-id>`
+
+Manifest changes:
+- [ ] none
+- [ ] add or update layer definitions
+- [ ] public surface changed
+
+Boundary risk:
+- <main risk of responsibility or dependency drift>
+
+---
+
 ## Folder Structure  <!-- include only when new directories or files are being created -->
 
 ```
@@ -160,6 +195,8 @@ Do a **brainstorm-style review pass** on the full document before showing it to 
 
 - Is every component in the checklist also covered in the Design section?
 - Is there a signature stub for every new file?
+- If the change is boundary-sensitive, is there a `## Boundary` section with an owning manifest and affected layers?
+- If the repo is adopting manifests, does the plan say which old boundary artifacts are kept, superseded, or removed?
 - Flag any step that is underspecified or too coarse — propose splits
 - Ask: "is there a simpler sequence?"
 - Ask: "what's the test strategy for the riskiest step?"
@@ -203,10 +240,11 @@ Use comments sparingly and for future readers, not for narration:
 After all checklist items are checked:
 
 1. Re-read the **Context** section of the plan — does the implementation match what was promised?
-2. Scan for missed test coverage, unhandled edge cases, or broken contracts
-3. Verify that build, lint, and all tests pass cleanly
-4. Confirm the final implementation notes cover verification results, deferred items, and remaining risks
-5. Any gaps found become new checklist items and are fixed before done
+2. If `module-boundary-governance` applied, run the boundary audit and record whether changed files still match the manifest.
+3. Scan for missed test coverage, unhandled edge cases, or broken contracts
+4. Verify that build, lint, and all tests pass cleanly
+5. Confirm the final implementation notes cover verification results, deferred items, and remaining risks
+6. Any gaps found become new checklist items and are fixed before done
 
 ## Phase 5: Tweaks
 
