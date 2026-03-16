@@ -1,6 +1,6 @@
 ---
 name: plan-driven-change
-description: "Approval-gated, plan-first workflow for larger code changes. Use when the user asks to build a new capability or make a non-trivial change that touches multiple files, crosses module boundaries, or involves architectural decisions. Do NOT use for bug fixes, one-line tweaks, dependency bumps, or small config changes. The workflow is: clarify intent -> user approves -> write a rich plan with interface stubs + checklist -> user approves -> implement with progress logging -> run a gap audit -> record tweaks."
+description: "Approval-gated, plan-first workflow for larger code changes. Use when the user asks to build a new capability or make a non-trivial change that touches multiple files, crosses module boundaries, or involves architectural decisions. Do NOT use for bug fixes, one-line tweaks, dependency bumps, or small config changes. The workflow is: clarify intent, get user approval, write a rich plan with interface stubs and checklist, get user approval again, implement with progress logging, run a gap audit, and record tweaks."
 ---
 
 # Plan-Driven Change
