@@ -3,11 +3,11 @@
 # Usage:
 #   xcode-release.sh --project Foo.xcodeproj --scheme FooScheme \
 #                    [--version 2.1.0 --build 42]  # or infer from git tag on HEAD
-#                    [--platform ios|macos] [--catalyst] \
+#                    [--platform ios|macos|mac_catalyst[,ios|macos|mac_catalyst...]] \
 #                    [--export-plist /path/to/ExportOptions.plist] \
 #                    [--force] [--preflight-only]
 
-set -euo pipefail
+set -Eeuo pipefail
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,8 +35,9 @@ Version bump (only with archive-history inference; cannot combine with --version
   --bumpMajor                   Increment major, reset minor+patch: 2.1.4 → 3.0.0
 
 Optional:
-  --platform  ios|macos         Archive destination (default: ios)
-  --catalyst                    Pass SUPPORTS_MACCATALYST=YES to xcodebuild
+  --platform  <list>            Comma-separated platforms in execution order.
+                                Allowed values: ios, macos, mac_catalyst
+                                Default: ios
   --export-plist  <path>        Override the bundled ExportOptions.plist
   --force                       Re-archive even if an archive already exists
   --preflight-only              Validate setup (scheme, plist, paths) without
@@ -47,6 +48,19 @@ EOF
 
 log()  { echo "[xcode-release] $*"; }
 err()  { echo "[xcode-release] ERROR: $*" >&2; exit 1; }
+
+build_retry_cmd() {
+  RETRY_CMD="$(basename "$0") --project \"$PROJECT\" --scheme \"$SCHEME\" --version \"${VERSION:-?}\" --build \"${BUILD:-?}\" --platform \"${PLATFORM:-?}\""
+  if [[ -n "$EXPORT_PLIST" ]]; then
+    RETRY_CMD="${RETRY_CMD} --export-plist \"$EXPORT_PLIST\""
+  fi
+  if [[ $FORCE -eq 1 ]]; then
+    RETRY_CMD="${RETRY_CMD} --force"
+  fi
+  if [[ $PREFLIGHT_ONLY -eq 1 ]]; then
+    RETRY_CMD="${RETRY_CMD} --preflight-only"
+  fi
+}
 
 open_archive_in_xcode() {
   local archive_path="$1"
@@ -64,7 +78,6 @@ VERSION=""
 BUILD=""
 BUMP=""     # patch | minor | major | ""
 PLATFORM="ios"
-CATALYST=0
 EXPORT_PLIST=""
 FORCE=0
 PREFLIGHT_ONLY=0
@@ -79,7 +92,6 @@ while [[ $# -gt 0 ]]; do
     --bumpMinor)      BUMP="minor";      shift   ;;
     --bumpMajor)      BUMP="major";      shift   ;;
     --platform)       PLATFORM="$2";     shift 2 ;;
-    --catalyst)       CATALYST=1;        shift   ;;
     --export-plist)   EXPORT_PLIST="$2"; shift 2 ;;
     --force)          FORCE=1;           shift   ;;
     --preflight-only) PREFLIGHT_ONLY=1;  shift   ;;
@@ -105,12 +117,6 @@ fi
 
 [[ -d "$PROJECT" ]]  || err "Project not found: $PROJECT"
 PROJECT="$(cd "$PROJECT" && pwd)"
-
-case "$PLATFORM" in
-  ios)   DESTINATION="generic/platform=iOS"   ;;
-  macos) DESTINATION="generic/platform=macOS" ;;
-  *)     err "--platform must be 'ios' or 'macos' (got: $PLATFORM)" ;;
-esac
 
 # ── git tag inference ─────────────────────────────────────────────────────────
 
@@ -232,6 +238,7 @@ infer_from_archives() {
 # ── step tracking + failure trap ─────────────────────────────────────────────
 
 CURRENT_STEP="init"
+RETRY_CMD=""
 
 on_error() {
   echo ""
@@ -248,8 +255,8 @@ on_error() {
     tail -20 "$log_file" | sed 's/^/    /'
   fi
   log "  Retry command:"
-  # shellcheck disable=SC2153
-  log "    $(basename "$0") --project \"${PROJECT}\" --scheme \"${SCHEME}\" --version \"${VERSION:-?}\" --build \"${BUILD:-?}\""
+  build_retry_cmd
+  log "    ${RETRY_CMD}"
   log "──────────────────────────────────────────"
 }
 
@@ -318,6 +325,79 @@ run_preflight() {
 PROJECT_DIR="$(cd "$(dirname "$PROJECT")" && pwd)"
 PROJECT_NAME="$(basename "$PROJECT" .xcodeproj)"
 
+# ── platform parsing ──────────────────────────────────────────────────────────
+
+PLATFORM_LIST=()
+
+parse_platforms() {
+  local raw_list="$1"
+  local raw_platform cleaned
+  local -a parsed=()
+
+  IFS=',' read -r -a parsed <<< "$raw_list"
+  [[ ${#parsed[@]} -gt 0 ]] || err "--platform must not be empty"
+
+  local -a unique=()
+  for raw_platform in "${parsed[@]+"${parsed[@]}"}"; do
+    cleaned="$(echo "$raw_platform" | tr -d '[:space:]')"
+    [[ -n "$cleaned" ]] || err "--platform contains an empty entry"
+    case "$cleaned" in
+      ios|macos|mac_catalyst) ;;
+      *) err "--platform entries must be ios, macos, or mac_catalyst (got: $cleaned)" ;;
+    esac
+
+    local seen=0 existing
+    for existing in "${unique[@]+"${unique[@]}"}"; do
+      if [[ "$existing" == "$cleaned" ]]; then
+        seen=1
+        break
+      fi
+    done
+    [[ $seen -eq 0 ]] || err "Duplicate platform in --platform list: $cleaned"
+    unique+=("$cleaned")
+  done
+
+  PLATFORM_LIST=("${unique[@]}")
+}
+
+setup_platform_context() {
+  local requested_platform="$1"
+  PLATFORM_VARIANT="$requested_platform"
+  EXTRA_XCODEBUILD_SETTING=""
+
+  case "$requested_platform" in
+    ios)
+      DESTINATION="generic/platform=iOS"
+      ;;
+    macos)
+      DESTINATION="generic/platform=macOS"
+      ;;
+    mac_catalyst)
+      DESTINATION="generic/platform=iOS"
+      EXTRA_XCODEBUILD_SETTING="SUPPORTS_MACCATALYST=YES"
+      ;;
+    *)
+      err "Unsupported platform: $requested_platform"
+      ;;
+  esac
+}
+
+set_artifact_paths() {
+  RUN_DIR="${HOME}/.xcode-archive/${PROJECT_NAME}/${VERSION}-${BUILD}"
+  ARCHIVE_PATH="${RUN_DIR}/${PROJECT_NAME}-${PLATFORM_VARIANT}.xcarchive"
+  DERIVED_DATA="${RUN_DIR}/DerivedData-${PLATFORM_VARIANT}"
+  EXPORT_PATH="${RUN_DIR}/export-${PLATFORM_VARIANT}"
+  LOGS_DIR="${RUN_DIR}/logs-${PLATFORM_VARIANT}"
+  COMPLETE_MARKER="${RUN_DIR}/.completed-${PLATFORM_VARIANT}"
+}
+
+completion_marker_for_variant() {
+  local variant="$1"
+  echo "${HOME}/.xcode-archive/${PROJECT_NAME}/${VERSION}-${BUILD}/.completed-${variant}"
+}
+
+parse_platforms "$PLATFORM"
+
 # Infer version/build: git tag on HEAD → archive history → error
 if [[ -z "$VERSION" ]]; then
   if infer_from_tag "$PROJECT_DIR"; then
@@ -328,11 +408,22 @@ if [[ -z "$VERSION" ]]; then
     err "Could not infer version/build: no parseable git tag on HEAD and no archive history found in ~/.xcode-archive/${PROJECT_NAME}/. Provide --version and --build explicitly."
   fi
 fi
-RUN_DIR="${HOME}/.xcode-archive/${PROJECT_NAME}/${VERSION}-${BUILD}"
-ARCHIVE_PATH="${RUN_DIR}/${PROJECT_NAME}.xcarchive"
-DERIVED_DATA="${RUN_DIR}/DerivedData"
-EXPORT_PATH="${RUN_DIR}/export"
-LOGS_DIR="${RUN_DIR}/logs"
+
+if [[ ${#PLATFORM_LIST[@]} -eq 1 ]]; then
+  PLATFORM="${PLATFORM_LIST[0]}"
+  setup_platform_context "$PLATFORM"
+  set_artifact_paths
+else
+  PLATFORM_VARIANT=""
+  DESTINATION=""
+  EXTRA_XCODEBUILD_SETTING=""
+  RUN_DIR="${HOME}/.xcode-archive/${PROJECT_NAME}/${VERSION}-${BUILD}"
+  ARCHIVE_PATH=""
+  DERIVED_DATA=""
+  EXPORT_PATH=""
+  LOGS_DIR=""
+  COMPLETE_MARKER=""
+fi
 
 # Bundled ExportOptions plist is next to this script in ../assets/
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -341,17 +432,28 @@ EXPORT_PLIST="${EXPORT_PLIST:-$DEFAULT_PLIST}"
 
 [[ -f "$EXPORT_PLIST" ]] || err "ExportOptions.plist not found: $EXPORT_PLIST"
 
-# ── dry-run summary ───────────────────────────────────────────────────────────
+# ── summaries ────────────────────────────────────────────────────────────────
 
-log "──────────────────────────────────────────"
-log "  Project : $PROJECT"
-log "  Scheme  : $SCHEME"
-log "  Version : $VERSION ($BUILD)${TAG_SOURCE}"
-log "  Platform: $PLATFORM ($DESTINATION)"
-log "  Catalyst: $([ $CATALYST -eq 1 ] && echo yes || echo no)"
-log "  Archive : $ARCHIVE_PATH"
-log "  Export  : $EXPORT_PATH"
-log "──────────────────────────────────────────"
+print_single_platform_summary() {
+  log "──────────────────────────────────────────"
+  log "  Project : $PROJECT"
+  log "  Scheme  : $SCHEME"
+  log "  Version : $VERSION ($BUILD)${TAG_SOURCE}"
+  log "  Platform: $PLATFORM ($DESTINATION)"
+  log "  Archive : $ARCHIVE_PATH"
+  log "  Export  : $EXPORT_PATH"
+  log "──────────────────────────────────────────"
+}
+
+print_batch_summary() {
+  log "──────────────────────────────────────────"
+  log "  Project   : $PROJECT"
+  log "  Scheme    : $SCHEME"
+  log "  Version   : $VERSION ($BUILD)${TAG_SOURCE}"
+  log "  Platforms : $PLATFORM"
+  log "  Run dir   : $RUN_DIR"
+  log "──────────────────────────────────────────"
+}
 
 # ── step 1: version bump ──────────────────────────────────────────────────────
 
@@ -426,7 +528,7 @@ run_archive() {
   log "  Log: $log_file"
 
   local -a extra_settings=()
-  [[ $CATALYST -eq 1 ]] && extra_settings+=(SUPPORTS_MACCATALYST=YES)
+  [[ -n "$EXTRA_XCODEBUILD_SETTING" ]] && extra_settings+=("$EXTRA_XCODEBUILD_SETTING")
 
   xcodebuild \
     -project         "$PROJECT" \
@@ -440,7 +542,7 @@ run_archive() {
     archive 2>&1 | tee "$log_file"
 
   # tee masks xcodebuild exit code; check PIPESTATUS explicitly
-  [[ ${PIPESTATUS[0]} -eq 0 ]] || { log "xcodebuild archive failed (see $log_file)"; exit 1; }
+  [[ ${PIPESTATUS[0]} -eq 0 ]] || { log "xcodebuild archive failed (see $log_file)"; return 1; }
 
   log "Archive complete: $ARCHIVE_PATH"
 }
@@ -468,10 +570,11 @@ run_export_upload() {
       return 0
     fi
     log "xcodebuild export failed (see $log_file)"
-    exit 1
+    return 1
   fi
 
   log "Upload complete."
+  touch "$COMPLETE_MARKER"
   log ""
   log "Cleaning up DerivedData…"
   rm -rf "$DERIVED_DATA"
@@ -480,25 +583,102 @@ run_export_upload() {
   log "Artifacts saved to: $RUN_DIR"
 }
 
-# ── main flow ─────────────────────────────────────────────────────────────────
+# ── execution ─────────────────────────────────────────────────────────────────
 
-mkdir -p "$RUN_DIR"
+run_single_platform_flow() {
+  print_single_platform_summary
+  mkdir -p "$RUN_DIR"
 
-# Preflight-only: validate everything and exit before touching source files
-if [[ $PREFLIGHT_ONLY -eq 1 ]]; then
-  run_preflight
-  exit 0
+  if [[ $PREFLIGHT_ONLY -eq 1 ]]; then
+    run_preflight
+    return 0
+  fi
+
+  if [[ -f "$COMPLETE_MARKER" && $FORCE -eq 0 ]]; then
+    log "Platform ${PLATFORM_VARIANT} already completed — skipping."
+    return 0
+  fi
+
+  if [[ $FORCE -eq 1 ]]; then
+    rm -f "$COMPLETE_MARKER"
+  fi
+
+  if [[ -d "$ARCHIVE_PATH" && $FORCE -eq 0 ]]; then
+    log "Archive already exists — skipping version bump and archive step."
+    log "  (Use --force to rebuild the archive.)"
+  else
+    CURRENT_STEP="bump"
+    bump_versions
+    CURRENT_STEP="archive"
+    run_archive
+  fi
+
+  CURRENT_STEP="export"
+  run_export_upload
+}
+
+run_batch_flow() {
+  local script_self="${SCRIPT_DIR}/$(basename "${BASH_SOURCE[0]}")"
+  local bash_bin="${BASH:-bash}"
+  local platform_item marker
+  local successes=0 failures=0 skipped=0
+  local -a summary_lines=()
+  local -a child_cmd=()
+
+  print_batch_summary
+  mkdir -p "$RUN_DIR"
+
+  for platform_item in "${PLATFORM_LIST[@]+"${PLATFORM_LIST[@]}"}"; do
+    marker="$(completion_marker_for_variant "$platform_item")"
+
+    if [[ $PREFLIGHT_ONLY -eq 0 && $FORCE -eq 0 && -f "$marker" ]]; then
+      log "Skipping ${platform_item}: already completed."
+      summary_lines+=("${platform_item}: skipped-existing")
+      skipped=$(( skipped + 1 ))
+      continue
+    fi
+
+    log ""
+    log "=== Running platform: ${platform_item} ==="
+
+    child_cmd=(
+      "$bash_bin"
+      "$script_self"
+      --project "$PROJECT"
+      --scheme "$SCHEME"
+      --version "$VERSION"
+      --build "$BUILD"
+      --platform "$platform_item"
+    )
+    [[ -n "$EXPORT_PLIST" ]] && child_cmd+=(--export-plist "$EXPORT_PLIST")
+    [[ $FORCE -eq 1 ]] && child_cmd+=(--force)
+    [[ $PREFLIGHT_ONLY -eq 1 ]] && child_cmd+=(--preflight-only)
+
+    if "${child_cmd[@]}"; then
+      summary_lines+=("${platform_item}: success")
+      successes=$(( successes + 1 ))
+    else
+      summary_lines+=("${platform_item}: failed")
+      failures=$(( failures + 1 ))
+    fi
+  done
+
+  log ""
+  log "Batch summary:"
+  local summary_line
+  for summary_line in "${summary_lines[@]+"${summary_lines[@]}"}"; do
+    log "  ${summary_line}"
+  done
+  log "Result: ${successes} succeeded, ${failures} failed, ${skipped} skipped-existing"
+
+  [[ $failures -eq 0 ]]
+}
+
+if [[ ${#PLATFORM_LIST[@]} -gt 1 ]]; then
+  if run_batch_flow; then
+    exit 0
+  fi
+  exit 1
 fi
 
-if [[ -d "$ARCHIVE_PATH" && $FORCE -eq 0 ]]; then
-  log "Archive already exists — skipping version bump and archive step."
-  log "  (Use --force to rebuild the archive.)"
-else
-  CURRENT_STEP="bump"
-  bump_versions
-  CURRENT_STEP="archive"
-  run_archive
-fi
-
-CURRENT_STEP="export"
-run_export_upload
+run_single_platform_flow
