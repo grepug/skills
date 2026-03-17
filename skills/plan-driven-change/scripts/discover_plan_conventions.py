@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -19,6 +20,26 @@ PLAN_DIR_CANDIDATES = (
 )
 
 PLAN_DIR_BASENAMES = ("plans", "rfcs", "decisions")
+
+IGNORED_DIR_NAMES = {
+    ".git",
+    ".hg",
+    ".svn",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    ".mypy_cache",
+    ".pytest_cache",
+    ".tox",
+    ".nox",
+    ".next",
+    ".turbo",
+    "build",
+    "dist",
+    "target",
+    "vendor",
+}
 
 TASK_LEDGER_CANDIDATES = (
     "tasks/todo.md",
@@ -50,17 +71,21 @@ def list_markdown_files(directory: Path) -> list[Path]:
     )
 
 
+def walk_repo_directories(repo_root: Path):
+    for root, dirnames, filenames in os.walk(repo_root, topdown=True):
+        dirnames[:] = sorted(name for name in dirnames if name not in IGNORED_DIR_NAMES)
+        yield Path(root), dirnames, filenames
+
+
 def discover_nested_plan_dirs(repo_root: Path) -> list[Path]:
     matches: list[Path] = []
-    for path in repo_root.rglob("*"):
-        if not path.is_dir():
+    for root, _, _ in walk_repo_directories(repo_root):
+        if root == repo_root:
             continue
-        if path.name.lower() not in PLAN_DIR_BASENAMES:
+        if root.name.lower() not in PLAN_DIR_BASENAMES:
             continue
-        if ".git" in path.parts:
-            continue
-        if list_markdown_files(path):
-            matches.append(path)
+        if list_markdown_files(root):
+            matches.append(root)
     return sorted(matches)
 
 
@@ -84,8 +109,12 @@ def discover_archive_index(repo_root: Path, active_plan_dir: Path) -> Path | Non
     if preferred.is_file():
         return preferred
 
-    matches = sorted(repo_root.glob("**/ARCHIVED.md"))
-    return matches[0] if matches else None
+    matches: list[Path] = []
+    for root, _, filenames in walk_repo_directories(repo_root):
+        if "ARCHIVED.md" not in filenames:
+            continue
+        matches.append(root / "ARCHIVED.md")
+    return sorted(matches)[0] if matches else None
 
 
 def discover_task_ledger(repo_root: Path) -> Path | None:
