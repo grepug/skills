@@ -227,13 +227,60 @@ If the project already has a decision log, changelog, ADR folder, or implementat
 
 ## Commenting Standard
 
-Use comments sparingly and for future readers, not for narration:
+Write comments for future readers working without full context. That includes teammates, your later self, and AI assistants reading one file at a time. Favor rich local explanation when it helps a future editor understand why the code exists or why it works this way. Do not narrate obvious code.
 
-- Add comments only where the code contains a non-obvious constraint, invariant, workaround, or trade-off
-- Do not add comments that restate what the code already says clearly
-- Put broader rationale in the plan document; put local rationale in code only when a future editor would miss it at the point of change
-- Prefer short boundary comments near subtle logic, protocol edges, migrations, or compatibility shims
-- If a new component needs explanation longer than 2-3 lines, the design is probably underspecified or the component should be split
+### File header docs
+
+New files and heavily reshaped files should open with a short header comment that explains:
+
+- what the file is responsible for
+- why it exists if that is not obvious from the name
+- how it fits into the surrounding system
+- any non-obvious design choice, dependency, or boundary that matters to future edits
+
+If the file is part of a larger flow, call out the key related module, entrypoint, or owning abstraction so readers know where to look next.
+
+### Function and method docs
+
+Document the contract, not the implementation. Add function or method comments when a reader would otherwise miss:
+
+- the purpose of the operation
+- important constraints, invariants, or edge cases
+- ambiguous return-value behavior
+- side effects such as network calls, file writes, cache invalidation, or state mutation
+
+Skip doc comments for trivial getters, obvious helpers, or code whose behavior is already clear from the signature and name.
+
+### Inline comments
+
+Use inline comments to explain the why behind a choice:
+
+- why this branch exists
+- why a workaround is safe
+- why an invariant holds
+- why one trade-off was chosen over another
+
+Do not restate what the next line of code obviously does. Good inline comments usually sit next to subtle logic, protocol edges, migrations, compatibility shims, retry behavior, or ordering assumptions.
+
+### Architectural and decision comments
+
+When code embodies an important design decision, add a local note that captures the trade-off. Keep broad system rationale in the plan document, but keep enough context in the code so a future editor can safely modify it without hunting through old chat or plan history.
+
+### TODO, HACK, and FIXME comments
+
+Make temporary comments actionable and traceable:
+
+- say what needs to change
+- say what blocks it or when it can be removed
+- include an issue, ticket, bug, or other anchor when one exists
+
+### Quality bar
+
+- Prefer plain language over jargon
+- Explain why, not what
+- Be specific about constraints and behavior
+- Reference constants or abstractions by name instead of duplicating values in prose
+- If a component needs long comments to be understandable, improve the design, split the component, or strengthen the plan before adding more explanation
 
 ## Phase 4: Gap Audit
 
