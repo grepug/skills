@@ -21,12 +21,16 @@ Skip for: bug fixes, one-liners, dependency bumps, config tweaks, and small main
 
 Before starting, quickly orient to the project:
 
-- Where does the project store plans or design docs? Check for `docs/`, `docs/plans/`, `docs/rfcs/`, `docs/decisions/`, `.github/`, `planning/`, or similar. If none found, default to `docs/plans/`.
+- Use `scripts/discover_plan_conventions.py <repo-root>` when available to inspect the repo before making assumptions about plan storage or archival.
+- Where does the project store active plans or design docs? Check for `docs/`, `docs/plans/`, `docs/rfcs/`, `docs/decisions/`, `.github/`, `planning/`, or similar. If none found, default to `docs/plans/`.
+- Does the repo keep old plans in place, or archive them out of the live plan folder?
+- If the repo archives plans, does it use an archive index such as `docs/plans/ARCHIVED.md`?
+- Does the repo use any separate task ledger at all, or is the active plan file the execution tracker?
 - What are the build, lint, and test commands? Check `package.json`, `Makefile`, `README`, `justfile`, `pyproject.toml`, or CI config.
 - What language(s) and conventions does the project use for interfaces and types?
 - Does the project already define module boundaries, public entrypoints, or ownership docs? Check for boundary manifests, architecture docs, rules docs, or module readmes.
 
-Use these findings throughout the workflow — don't hardcode assumptions.
+Use these findings throughout the workflow — don't hardcode assumptions. The skill must follow repo-specific plan retention conventions instead of inventing its own.
 
 ### Boundary-sensitive changes
 
@@ -75,6 +79,29 @@ docs/plans/YYYY-MM-DD-NN-<kebab-topic>.md
 `NN` is a zero-padded two-digit sequence number for that calendar day, starting at `01`. List existing files for that date and increment from the highest `NN` found (or use `01` if none exist).
 
 The plan is a **design document first, checklist second.** It should be rich enough that any engineer can implement without asking follow-up questions.
+
+### Plan retention and archival conventions
+
+- Follow existing repo policy if present.
+- If the repo uses a live working set plus an archive index, do not invent a second archive system.
+- If the repo has no archival convention and you need to introduce one, default to a live working set plus `docs/plans/ARCHIVED.md` metadata index with git-based recovery commands.
+- Archive indexes are metadata only. Do not copy full archived plans into the index.
+- Prefer local git recovery commands over host-specific web URLs.
+- Do not ask the user to choose between equivalent archive mechanics when the repo has no policy and the skill already defines the default.
+- If the repo has no separate task ledger convention, the active plan file is the default execution tracker.
+
+Example archive-index convention:
+
+- File: `docs/plans/ARCHIVED.md`
+- Concrete example: `assets/ARCHIVED.example.md`
+- Columns:
+  - `Original plan`
+  - `Archived on`
+  - `Summary`
+  - `Recovery`
+- Recovery examples:
+  - `git log --follow -- docs/plans/<filename>.md`
+  - `git show <commit>:docs/plans/<filename>.md`
 
 ### Required sections (always present)
 
@@ -188,6 +215,8 @@ path/to/module/
 - Each item names the file(s) it touches and cross-references the relevant design section (`see §ComponentName`)
 - Verification steps (build, lint, tests) are explicit items — use the actual commands for the project
 - Steps are ordered by dependency — no step assumes earlier unfinished work
+- The default execution tracker is the active plan file under `## Checklist`
+- Only use a separate tracker if the repo explicitly uses one
 
 ### Review pass before sharing
 
@@ -207,7 +236,8 @@ Do a **brainstorm-style review pass** on the full document before showing it to 
 
 Work through the checklist top-to-bottom:
 
-- Check off items as completed using the manage_todo_list tool or by updating the plan file
+- Check off items as completed in the active plan file under `## Checklist`
+- Only use a separate tracker when the repo explicitly uses one
 - Run verification steps (build, lint, tests) at the milestones specified in the checklist
 - If a step reveals unexpected complexity, stop and surface it before continuing — do not silently expand scope
 
@@ -224,6 +254,16 @@ While implementing, leave a compact trail that makes the work easy to review:
   - what risks or follow-ups remain
 
 If the project already has a decision log, changelog, ADR folder, or implementation-notes convention, append to that instead of inventing a new logging location.
+
+## Guardrails
+
+- If the repo tracks work in `docs/plans/*.md`, do not introduce `tasks/todo.md`.
+- If the repo archives plans via an index, do not leave stale completed plans in the live folder without reason.
+- If the repo keeps historical plans in place, do not invent an archive pass.
+- Keep these concerns separate:
+  - active plan tracking
+  - durable lessons or knowledge capture
+  - historical plan archival
 
 ## Commenting Standard
 
@@ -302,3 +342,4 @@ Post-implementation polish or orphan changes that emerge from conversation:
   - [x] Fixed edge case in parser — added null guard
   ```
 - If no parent plan file exists for the tweak, create a new sequenced plan file for that day with just a `## Tweaks` section.
+- Default to recording follow-up polish in the active plan file. Only use a separate tracker if the repo explicitly uses one.
