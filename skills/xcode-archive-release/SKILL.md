@@ -1,11 +1,11 @@
 ---
 name: xcode-archive-release
-description: Bump version/build number, archive an Xcode project, and upload to App Store Connect in one workflow. Use when a user wants to release an iOS or macOS app to the App Store — tasks like "archive and upload to ASC", "bump version and release", "release version 2.1.0 build 42", "release from git tag", or "retry a failed upload".
+description: Bump version/build number, archive an Xcode project, upload to App Store Connect, then tag and push the release in git. Use when a user wants to release an iOS or macOS app to the App Store — tasks like "archive and upload to ASC", "bump version and release", "release version 2.1.0 build 42", "release from git tag", or "retry a failed upload".
 ---
 
 # Xcode Archive & Release
 
-Release an Apple app by bumping version/build metadata, archiving with Xcode, then exporting and uploading to App Store Connect.
+Release an Apple app by bumping version/build metadata, archiving with Xcode, exporting and uploading to App Store Connect, then tagging the released `HEAD` in git.
 
 ## Use when
 
@@ -20,7 +20,7 @@ Release an Apple app by bumping version/build metadata, archiving with Xcode, th
 - Access to the correct Apple Developer team and App Store Connect account
 - A clean understanding of the target project, scheme, platform list, version, and build number
 
-The main helper is `scripts/xcode-release.sh`. The bundled `assets/ExportOptions-AppStore.plist` sets `method=app-store` and `destination=upload`, so the default flow uploads directly to App Store Connect without a separate `altool` step.
+The main helper is `scripts/xcode-release.sh`. The bundled `assets/ExportOptions-AppStore.plist` sets `method=app-store` and `destination=upload`, so the default flow uploads directly to App Store Connect without a separate `altool` step. After a successful automatic upload, the script creates the annotated git tag `v<version>-<build>` on the current `HEAD` and pushes that exact tag to the branch's upstream remote, or `origin` if no upstream remote is configured.
 
 ## Confirm before acting
 
@@ -107,12 +107,25 @@ When multiple platforms are listed, the script builds them sequentially in the o
 
 If the tag is ambiguous or missing a component, the script errors with a message directing you to pass `--version` and `--build` explicitly.
 
-### 4. Report results
+### 4. Create and push release tag
+
+After a successful automatic upload, the script creates and pushes an annotated release tag:
+
+- tag format: `v<version>-<build>`
+- example: `v2.1.0-42`
+- tag message: `Release 2.1.0 (42)`
+
+The tag is created on the current `HEAD`. The script does **not** create a git commit for the version/build edits it made during the release. If those edits are still uncommitted, the tag still points at the pre-existing `HEAD` commit.
+
+If the tag already exists locally or on the remote, the script fails without moving or force-pushing the tag.
+
+### 5. Report results
 
 On success, the script prints the artifact path. Tell the user:
 
 - Where artifacts are: `~/.xcode-archive/<project-name>/<version>-<build>/`
 - To check App Store Connect → TestFlight or the Builds tab to confirm the upload processed
+- Which git tag was created and which remote it was pushed to
 
 The platform variant is `ios`, `macos`, or `mac_catalyst`. The script keeps the same version/build folder and makes the archive, export, DerivedData, and log names platform-specific.
 
@@ -127,6 +140,7 @@ Successful runs produce:
 - exported artifacts under `export-<platform-variant>/`
 - logs under `logs-<platform-variant>/archive.log` and `logs-<platform-variant>/export.log`
 - a per-platform completion marker used to skip already completed variants on rerun
+- an annotated git tag `v<version>-<build>` pushed to the configured remote after automatic upload succeeds
 
 The user should verify the build appears in App Store Connect after processing finishes.
 
@@ -137,6 +151,8 @@ If one platform in a batch fails (network issue, ASC outage, etc.):
 1. If the original run already pinned version/build explicitly, or inferred them from a git tag, run the **exact same command** — already completed platforms are skipped, and incomplete platforms are retried in sequence.
 2. If the original run inferred version/build from archive history, use the retry command printed on failure instead. That retry command pins the resolved `--version` and `--build`, so it retries the same release instead of advancing to the next build number.
 3. Use `--force` only if you need to rebuild all listed platforms from scratch (e.g. wrong code was archived).
+
+If upload succeeded but tag creation or tag push failed, do **not** re-run the full release command blindly. The binary may already be uploaded, and a retry can fail with duplicate upload or duplicate tag errors. Use the script's tag-specific failure message to decide whether to create or push the tag manually.
 
 ## Output Folder Structure
 
@@ -186,6 +202,9 @@ Each run has its own versioned folder, and each platform variant gets its own ar
 | `No git tag on HEAD`                                                  | HEAD isn't tagged. Create a tag (`git tag v2.1.0-42 && git push --tags`) or pass `--version` and `--build` explicitly                                          |
 | `Tag(s) on HEAD ... don't contain one semver + one integer component` | Tag is missing the build number (e.g. `v2.1.0`) or has an unrecognised part (e.g. `release-2.1.0-42`). Rename the tag or pass `--version`/`--build` explicitly |
 | Script fails with `✗ FAILED at step: archive`                         | Check `~/.xcode-archive/<name>/<ver>-<build>/logs-<platform-variant>/archive.log` for the root cause; the failure block prints the last 20 lines automatically |
+| `Release tag already exists locally`                                  | The current repo already has `v<version>-<build>`. Do not force-move it; use a new build number if this is a new release attempt                               |
+| `Release tag already exists on remote`                                | The remote already has `v<version>-<build>`. Treat the tag as immutable; verify whether the release already happened before retrying                            |
+| `✗ FAILED at step: tag` after upload succeeded                        | The app upload completed but tagging did not. Follow the printed recovery command to push the local tag, or resolve the duplicate-tag/git-remote issue manually |
 
 ## ExportOptions Customization
 

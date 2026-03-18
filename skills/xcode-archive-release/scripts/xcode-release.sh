@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# xcode-release.sh — bump version, archive, and upload to App Store Connect
+# xcode-release.sh — bump version, archive, upload to App Store Connect, and tag the release
 # Usage:
 #   xcode-release.sh --project Foo.xcodeproj --scheme FooScheme \
 #                    [--version 2.1.0 --build 42]  # or infer from git tag on HEAD
@@ -42,12 +42,19 @@ Optional:
   --force                       Re-archive even if an archive already exists
   --preflight-only              Validate setup (scheme, plist, paths) without
                                 mutating files or building anything
+                                Successful automatic uploads create and push
+                                the annotated git tag v<version>-<build>
   -h, --help                    Show this help
 EOF
 }
 
 log()  { echo "[xcode-release] $*"; }
 err()  { echo "[xcode-release] ERROR: $*" >&2; exit 1; }
+
+TAG_NAME=""
+TAG_REMOTE=""
+TAG_CREATED=0
+UPLOAD_SUCCEEDED=0
 
 build_retry_cmd() {
   RETRY_CMD="$(basename "$0") --project \"$PROJECT\" --scheme \"$SCHEME\" --version \"${VERSION:-?}\" --build \"${BUILD:-?}\" --platform \"${PLATFORM:-?}\""
@@ -68,6 +75,49 @@ open_archive_in_xcode() {
     log "Opening archive in Xcode Organizer for manual upload…"
     open -a Xcode "$archive_path" >/dev/null 2>&1 || true
   fi
+}
+
+release_tag_name() {
+  echo "v${VERSION}-${BUILD}"
+}
+
+resolve_push_remote() {
+  if ! git -C "$PROJECT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    echo "[xcode-release] Tagging skipped: project is not inside a git repository." >&2
+    return 1
+  fi
+
+  local remote_name=""
+  remote_name="$(git -C "$PROJECT_DIR" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null | sed 's#/.*##' || true)"
+
+  if [[ -z "$remote_name" ]] && git -C "$PROJECT_DIR" remote get-url origin >/dev/null 2>&1; then
+    remote_name="origin"
+  fi
+
+  if [[ -z "$remote_name" ]]; then
+    echo "[xcode-release] Tagging skipped: no upstream remote configured and no origin remote found." >&2
+    return 1
+  fi
+
+  echo "$remote_name"
+}
+
+local_tag_exists() {
+  local tag_name="$1"
+  git -C "$PROJECT_DIR" rev-parse -q --verify "refs/tags/${tag_name}" >/dev/null 2>&1
+}
+
+remote_tag_exists() {
+  local remote_name="$1"
+  local tag_name="$2"
+  local remote_output=""
+
+  if ! remote_output="$(git -C "$PROJECT_DIR" ls-remote --tags "$remote_name" "refs/tags/${tag_name}" 2>&1)"; then
+    log "Unable to query tags on remote '${remote_name}': ${remote_output}"
+    return 2
+  fi
+
+  [[ -n "$remote_output" ]]
 }
 
 # ── argument parsing ─────────────────────────────────────────────────────────
@@ -254,9 +304,28 @@ on_error() {
     log "  Tail:"
     tail -20 "$log_file" | sed 's/^/    /'
   fi
-  log "  Retry command:"
-  build_retry_cmd
-  log "    ${RETRY_CMD}"
+
+  if [[ "$CURRENT_STEP" == "tag" ]]; then
+    if [[ $UPLOAD_SUCCEEDED -eq 1 ]]; then
+      log "  Upload status: upload to App Store Connect succeeded before tagging failed."
+    fi
+
+    if [[ -n "$TAG_NAME" ]]; then
+      log "  Release tag: ${TAG_NAME}"
+    fi
+
+    if [[ $TAG_CREATED -eq 1 && -n "$TAG_REMOTE" ]]; then
+      log "  Local tag status: created locally, but push failed."
+      log "  Manual recovery:"
+      log "    git -C \"$PROJECT_DIR\" push \"$TAG_REMOTE\" \"$TAG_NAME\""
+    else
+      log "  Local tag status: no new remote tag was pushed."
+    fi
+  else
+    log "  Retry command:"
+    build_retry_cmd
+    log "    ${RETRY_CMD}"
+  fi
   log "──────────────────────────────────────────"
 }
 
@@ -574,6 +643,7 @@ run_export_upload() {
   fi
 
   log "Upload complete."
+  UPLOAD_SUCCEEDED=1
   touch "$COMPLETE_MARKER"
   log ""
   log "Cleaning up DerivedData…"
@@ -583,11 +653,46 @@ run_export_upload() {
   log "Artifacts saved to: $RUN_DIR"
 }
 
+run_tag_release() {
+  TAG_NAME="$(release_tag_name)"
+  TAG_REMOTE="$(resolve_push_remote)" || return 1
+
+  log "Creating and pushing release tag ${TAG_NAME}…"
+
+  if local_tag_exists "$TAG_NAME"; then
+    log "Release tag already exists locally: ${TAG_NAME}"
+    return 1
+  fi
+
+  local remote_check_status=0
+  if remote_tag_exists "$TAG_REMOTE" "$TAG_NAME"; then
+    log "Release tag already exists on remote '${TAG_REMOTE}': ${TAG_NAME}"
+    return 1
+  else
+    remote_check_status=$?
+  fi
+
+  if [[ $remote_check_status -eq 2 ]]; then
+    return 1
+  fi
+
+  git -C "$PROJECT_DIR" tag -a "$TAG_NAME" -m "Release ${VERSION} (${BUILD})"
+  TAG_CREATED=1
+
+  git -C "$PROJECT_DIR" push "$TAG_REMOTE" "$TAG_NAME"
+  log "Release tag pushed: ${TAG_NAME} -> ${TAG_REMOTE}"
+}
+
 # ── execution ─────────────────────────────────────────────────────────────────
 
 run_single_platform_flow() {
   print_single_platform_summary
   mkdir -p "$RUN_DIR"
+
+  TAG_NAME=""
+  TAG_REMOTE=""
+  TAG_CREATED=0
+  UPLOAD_SUCCEEDED=0
 
   if [[ $PREFLIGHT_ONLY -eq 1 ]]; then
     run_preflight
@@ -615,6 +720,13 @@ run_single_platform_flow() {
 
   CURRENT_STEP="export"
   run_export_upload
+
+  if [[ $UPLOAD_SUCCEEDED -eq 1 ]]; then
+    CURRENT_STEP="tag"
+    run_tag_release
+  else
+    log "Skipping release tag creation because upload did not complete automatically."
+  fi
 }
 
 run_batch_flow() {
