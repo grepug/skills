@@ -44,6 +44,7 @@ If the repo has no established workflow, use the portable defaults bundled with 
 - `assets/issue-templates/research.yml`
 - `assets/issue-templates/config.yml`
 - `references/label-conventions.md`
+- `references/label-bootstrap.md`
 - `assets/canonical-plan-comment.md`
 
 When external dependencies are involved, extend discovery with one more required step before implementation:

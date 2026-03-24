@@ -50,4 +50,4 @@ gh label create 'priority:p2' --color FBCA04 --description 'Standard planned wor
 gh label create 'priority:p3' --color C2E0C6 --description 'Deferred or low-urgency work' --force
 ```
 
-If labels already exist with different colors or descriptions, prefer the repo's established presentation and keep the semantics aligned.
+These commands intentionally standardize colors and descriptions as well as names. If the repo already has established label presentation you want to preserve, either omit `--force` for labels that already exist or use `gh label edit` selectively so only the semantics stay aligned.
