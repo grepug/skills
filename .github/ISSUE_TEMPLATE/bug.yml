@@ -63,7 +63,7 @@ body:
     id: external_setup
     attributes:
       label: External setup dependencies
-      description: Research the official provider or platform docs first, then record the real-world setup a human developer must perform before live verification can pass. For each item, include the provider, what must exist, how to get or configure it, where that happens, who needs access, official doc links, and what verification it unlocks. Never paste secret values into the issue; record the secret name, storage location, and retrieval path instead. Write `None` if not applicable.
+      description: Research the official provider or platform docs first, then record the real-world setup a human developer must perform before live verification can pass. For each item, include the provider, what must exist, how to get or configure it, where that happens, who needs access, official doc links, and what verification it unlocks. Never paste secret values into the issue; record the secret name, owning system, storage location, and retrieval path instead. Write `None` if not applicable.
       placeholder: |
         Example:
         - Provider/platform: Example Provider

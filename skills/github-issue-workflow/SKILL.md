@@ -138,7 +138,7 @@ When external setup dependencies exist, the issue must also capture:
 
 - the provider or platform name
 - the concrete setup tasks required
-- the specific values, configuration surfaces, or credentials that must exist
+- the specific configuration surfaces plus credential identifiers or field names, owning systems, storage locations, and retrieval paths that must exist, never the secret values themselves
 - how a human developer retrieves, creates, verifies, or configures each dependency in the real system
 - the admin console, dashboard, API surface, or settings page where that work happens
 - who needs access or permissions to do it

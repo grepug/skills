@@ -29,7 +29,7 @@ For each external dependency, gather:
 5. `Who needs access`
    - The role or permissions required, such as org owner, billing admin, app admin, or repo maintainer.
 6. `Official docs`
-   - The exact documentation page or section that confirms the requirement.
+   - The exact documentation page or section that confirms the requirement, not just the docs homepage.
 7. `Unlocks`
    - The validation step, acceptance criterion, or live verification that becomes possible once the dependency exists.
 
@@ -75,7 +75,7 @@ Write each dependency in a concrete block like this:
   - How to get or configure it: Repo maintainer installs the app from the org settings page and confirms the permission set
   - Where to do that: GitHub org settings -> GitHub Apps -> Install App
   - Who needs access: Org owner or app admin
-  - Official docs: https://docs.github.com/
+  - Official docs: https://docs.github.com/en/developers/apps/managing-github-apps/installing-github-apps
   - Unlocks: Live verification that the issue automation can read and update issue state
 ```
 
