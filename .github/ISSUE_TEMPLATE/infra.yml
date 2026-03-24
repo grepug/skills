@@ -56,12 +56,16 @@ body:
     id: external_setup
     attributes:
       label: External setup dependencies
-      description: Research the official provider or platform docs first, then list the human-owned setup required before live verification can pass. Include the provider, exact setup required, the verification each item unlocks, and doc links. Write `None` if not applicable.
+      description: Research the official provider or platform docs first, then record the real-world setup a human developer must perform before live verification can pass. For each item, include the provider, what must exist, how to get or configure it, where that happens, who needs access, official doc links, and what verification it unlocks. Never paste secret values into the issue; record the secret name, storage location, and retrieval path instead. Write `None` if not applicable.
       placeholder: |
         Example:
-        - GitHub App installation or org-level setting created by a maintainer
-          - Unlocks end-to-end workflow verification
-          - Docs: https://docs.github.com/
+        - Provider/platform: GitHub
+          - What must exist: GitHub App installation or required org-level setting
+          - How to get or configure it: Maintainer installs the app or updates the org setting to the documented value
+          - Where to do that: GitHub org settings -> GitHub Apps or the documented org settings page
+          - Who needs access: Org owner or app admin
+          - Official docs: https://docs.github.com/
+          - Unlocks: End-to-end workflow verification
     validations:
       required: true
   - type: input
