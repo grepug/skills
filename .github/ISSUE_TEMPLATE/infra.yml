@@ -1,0 +1,103 @@
+name: Infra
+description: Infrastructure, tooling, workflow, CI, and repository operations work
+title: "infra: "
+labels:
+  - type:infra
+  - priority:p2
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / request
+      placeholder: Describe the infra or workflow problem to solve.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this matters
+      placeholder: Explain the impact or reason this is worth doing now.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      placeholder: Describe the concrete finished state.
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Constraints / non-goals
+      placeholder: Call out what should not change in this pass.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: List the checks that determine this work is done.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Initial priority
+      description: The bundled default label is `priority:p2`. If the selected value differs, replace the label after issue creation.
+      options:
+        - priority:p0
+        - priority:p1
+        - priority:p2
+        - priority:p3
+    validations:
+      required: true
+  - type: textarea
+    id: external_setup
+    attributes:
+      label: External setup dependencies
+      description: Research the official provider or platform docs first, then list the human-owned setup required before live verification can pass. Include the provider, exact setup required, the verification each item unlocks, and doc links. Write `None` if not applicable.
+      placeholder: |
+        Example:
+        - GitHub App installation or org-level setting created by a maintainer
+          - Unlocks end-to-end workflow verification
+          - Docs: https://docs.github.com/
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Affected repo area
+      placeholder: e.g. .github, scripts, templates, docs
+    validations:
+      required: true
+  - type: input
+    id: milestone
+    attributes:
+      label: Roadmap milestone or planning bucket
+      placeholder: e.g. backlog, next, docs pass, catalog adoption, none
+    validations:
+      required: false
+  - type: input
+    id: ownership
+    attributes:
+      label: Owning layer or module
+      placeholder: e.g. GitHub workflow, repo tooling, validation scripts
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation commands
+      description: Name the proof commands expected for this task.
+      placeholder: |
+        python3 scripts/validate_skills.py
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Links / references
+      placeholder: Link related issues, PRs, docs, screenshots, or logs.
+    validations:
+      required: false

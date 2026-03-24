@@ -1,0 +1,57 @@
+name: Seed
+description: Early idea, inspiration, or request that is worth capturing but not ready for committed work
+title: "seed: "
+labels:
+  - type:seed
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use a seed to capture an idea without turning it into backlog commitment yet.
+
+        Seed issues:
+        - stay separate from committed execution work
+        - should not define acceptance criteria or validation commands
+        - get promoted by opening a new execution issue instead of rewriting the seed
+  - type: textarea
+    id: idea
+    attributes:
+      label: Idea / request
+      placeholder: What idea, request, or inspiration should we capture?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why it is interesting
+      placeholder: Why might this be worth revisiting?
+    validations:
+      required: true
+  - type: textarea
+    id: trigger
+    attributes:
+      label: What triggered this
+      placeholder: Conversation, bug, customer signal, competitor example, technical observation, or other trigger.
+    validations:
+      required: false
+  - type: textarea
+    id: rough_shape
+    attributes:
+      label: Rough shape
+      placeholder: If this became real work later, what might it roughly look like?
+    validations:
+      required: false
+  - type: textarea
+    id: unknowns
+    attributes:
+      label: Open questions / unknowns
+      placeholder: What is still unclear, risky, or undecided?
+    validations:
+      required: false
+  - type: textarea
+    id: references
+    attributes:
+      label: Links / references
+      placeholder: Related issues, screenshots, docs, examples, or discussions.
+    validations:
+      required: false

@@ -15,6 +15,8 @@ REQUIRED_FRONTMATTER_KEYS = ("name", "description")
 REFERENCE_PATTERN = re.compile(r"(?:^|[^A-Za-z0-9_./-])((?:scripts|assets|references)/[A-Za-z0-9._/-]+)")
 FRONTMATTER_PATTERN = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 MAX_SKILL_NAME_LENGTH = 64
+MIRRORED_ISSUE_TEMPLATE_SKILL_DIR = ROOT / "skills" / "github-issue-workflow" / "assets" / "issue-templates"
+MIRRORED_ISSUE_TEMPLATE_ROOT_DIR = ROOT / ".github" / "ISSUE_TEMPLATE"
 
 
 def fail(errors: list[str], message: str) -> None:
@@ -40,6 +42,34 @@ def validate_root_files(errors: list[str]) -> None:
     for relative_path in REQUIRED_ROOT_FILES:
         if not (ROOT / relative_path).is_file():
             fail(errors, f"Missing required root file: {relative_path}")
+
+
+def validate_mirrored_issue_templates(errors: list[str]) -> None:
+    if not MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.is_dir() or not MIRRORED_ISSUE_TEMPLATE_ROOT_DIR.is_dir():
+        return
+
+    skill_files = sorted(path.relative_to(MIRRORED_ISSUE_TEMPLATE_SKILL_DIR) for path in MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.rglob("*") if path.is_file())
+    root_files = sorted(path.relative_to(MIRRORED_ISSUE_TEMPLATE_ROOT_DIR) for path in MIRRORED_ISSUE_TEMPLATE_ROOT_DIR.rglob("*") if path.is_file())
+
+    if skill_files != root_files:
+        fail(
+            errors,
+            "Mirrored issue template file sets differ between "
+            f"{MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.relative_to(ROOT)} and "
+            f"{MIRRORED_ISSUE_TEMPLATE_ROOT_DIR.relative_to(ROOT)}",
+        )
+        return
+
+    for relative_path in skill_files:
+        skill_text = (MIRRORED_ISSUE_TEMPLATE_SKILL_DIR / relative_path).read_text(encoding="utf-8")
+        root_text = (MIRRORED_ISSUE_TEMPLATE_ROOT_DIR / relative_path).read_text(encoding="utf-8")
+        if skill_text != root_text:
+            fail(
+                errors,
+                "Mirrored issue template content differs for "
+                f"{relative_path} between {MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.relative_to(ROOT)} "
+                f"and {MIRRORED_ISSUE_TEMPLATE_ROOT_DIR.relative_to(ROOT)}",
+            )
 
 
 def validate_readme_index(skill_dirs: list[Path], errors: list[str]) -> None:
@@ -128,6 +158,7 @@ def main() -> int:
     errors: list[str] = []
 
     validate_root_files(errors)
+    validate_mirrored_issue_templates(errors)
 
     if not SKILLS_DIR.is_dir():
         fail(errors, "Missing skills directory")
