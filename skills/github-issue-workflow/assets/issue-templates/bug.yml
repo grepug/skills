@@ -63,12 +63,16 @@ body:
     id: external_setup
     attributes:
       label: External setup dependencies
-      description: Research the official provider or platform docs first, then list the human-owned setup required before live verification can pass. Include the provider, exact setup required, the verification each item unlocks, and doc links. Write `None` if not applicable.
+      description: Research the official provider or platform docs first, then record the real-world setup a human developer must perform before live verification can pass. For each item, include the provider, what must exist, how to get or configure it, where that happens, who needs access, official doc links, and what verification it unlocks. Never paste secret values into the issue; record the secret name, owning system, storage location, and retrieval path instead. Write `None` if not applicable.
       placeholder: |
         Example:
-        - Provider sandbox account with the required scopes enabled
-          - Unlocks live bug verification against the real provider
-          - Docs: https://example.com/docs
+        - Provider/platform: Example Provider
+          - What must exist: Sandbox account with the required scopes enabled
+          - How to get or configure it: Admin creates the sandbox app and enables the needed scopes
+          - Where to do that: Provider dashboard -> Developers -> Sandbox apps
+          - Who needs access: Provider account admin
+          - Official docs: https://example.com/docs
+          - Unlocks: Live bug verification against the real provider
     validations:
       required: true
   - type: input

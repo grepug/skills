@@ -9,7 +9,7 @@ Use GitHub Issues as the source of truth for scope, acceptance criteria, live pr
 
 Prefer the repo's existing GitHub workflow when it exists. Use the bundled defaults in this skill only when the repo has no established issue templates, label conventions, or execution workflow.
 
-When work depends on third-party, platform, or provider setup outside the repo, do not guess the setup contract and do not defer that research until implementation is already underway. Research the official documentation first, then capture the concrete dependency and the verification it unlocks in the issue body before treating the issue as ready for execution.
+When work depends on third-party, platform, or provider setup outside the repo, do not guess the setup contract and do not defer that research until implementation is already underway. Research the official documentation first, then capture the concrete dependency, how a human retrieves or configures it in the real world, and the verification it unlocks in the issue body before treating the issue as ready for execution.
 
 ## Use when
 
@@ -45,11 +45,14 @@ If the repo has no established workflow, use the portable defaults bundled with 
 - `assets/issue-templates/config.yml`
 - `references/label-conventions.md`
 - `references/label-bootstrap.md`
+- `references/external-dependency-research.md`
 - `assets/canonical-plan-comment.md`
 
 When external dependencies are involved, extend discovery with one more required step before implementation:
 
 5. official provider or platform documentation for the required setup, configuration, limits, and verification prerequisites
+
+When that fifth step applies, use `references/external-dependency-research.md` to shape what must be researched and how the issue should record it.
 
 ## Default model when the repo has no workflow yet
 
@@ -135,12 +138,26 @@ When external setup dependencies exist, the issue must also capture:
 
 - the provider or platform name
 - the concrete setup tasks required
-- the specific values, configuration surfaces, or credentials that must exist
+- the specific configuration surfaces plus credential identifiers or field names, owning systems, storage locations, and retrieval paths that must exist, never the secret values themselves
+- how a human developer retrieves, creates, verifies, or configures each dependency in the real system
+- the admin console, dashboard, API surface, or settings page where that work happens
+- who needs access or permissions to do it
 - the official documentation links used to confirm those requirements
 - the validation or acceptance criteria that each setup item unlocks
 
+Prefer a concrete structure such as:
+
+- provider or platform
+- what must exist
+- how to get or configure it
+- where to do that
+- who needs access
+- official docs
+- unlocks
+
 Rules:
 
+- never paste the contents of secrets into the issue body; record the secret name, source, format, owner, storage location, and retrieval path instead
 - do not write `TBD`, `guess`, or similar placeholders when the information can be determined from official docs
 - do not defer dependency research until implementation unless the user explicitly chooses that tradeoff
 - if official docs are incomplete or contradictory, say that in the issue and record the remaining unknown precisely
@@ -194,3 +211,4 @@ Successful use of this skill should leave:
 - `assets/canonical-plan-comment.md` - default implementation-plan comment structure
 - `references/label-conventions.md` - portable label policy and meanings
 - `references/label-bootstrap.md` - how to create or sync the required label set in a repo that does not already have it
+- `references/external-dependency-research.md` - how to research and record real-world external setup requirements for issue bodies
