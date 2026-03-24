@@ -36,18 +36,18 @@ Suggested descriptions:
 
 ## GitHub CLI bootstrap example
 
-If `gh` is available and authenticated for the target repo, these commands create the label set:
+If `gh` is available and authenticated for the target repo, these commands create or update the label set:
 
 ```bash
-gh label create 'type:seed' --color BFD4F2 --description 'Early idea or intake item'
-gh label create 'type:feature' --color 0E8A16 --description 'Product or platform capability work'
-gh label create 'type:bug' --color D73A4A --description 'Defect investigation and correction'
-gh label create 'type:infra' --color 5319E7 --description 'Tooling, workflow, CI, or repo operations work'
-gh label create 'type:research' --color 1D76DB --description 'Investigation or decision-support work'
-gh label create 'priority:p0' --color B60205 --description 'Emergency or release-blocking work'
-gh label create 'priority:p1' --color D93F0B --description 'Highest normal execution priority'
-gh label create 'priority:p2' --color FBCA04 --description 'Standard planned work'
-gh label create 'priority:p3' --color C2E0C6 --description 'Deferred or low-urgency work'
+gh label create 'type:seed' --color BFD4F2 --description 'Early idea or intake item' --force
+gh label create 'type:feature' --color 0E8A16 --description 'Product or platform capability work' --force
+gh label create 'type:bug' --color D73A4A --description 'Defect investigation and correction' --force
+gh label create 'type:infra' --color 5319E7 --description 'Tooling, workflow, CI, or repo operations work' --force
+gh label create 'type:research' --color 1D76DB --description 'Investigation or decision-support work' --force
+gh label create 'priority:p0' --color B60205 --description 'Emergency or release-blocking work' --force
+gh label create 'priority:p1' --color D93F0B --description 'Highest normal execution priority' --force
+gh label create 'priority:p2' --color FBCA04 --description 'Standard planned work' --force
+gh label create 'priority:p3' --color C2E0C6 --description 'Deferred or low-urgency work' --force
 ```
 
 If labels already exist with different colors or descriptions, prefer the repo's established presentation and keep the semantics aligned.

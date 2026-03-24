@@ -28,6 +28,6 @@ Seed issues do not get priority labels.
 - Create or sync the portable label set before using the bundled default templates. See `references/label-bootstrap.md`.
 - Every execution issue gets exactly one `type:*` label and exactly one `priority:*` label.
 - Seed issues get `type:seed` and no priority label.
-- The bundled execution templates default new issues to `priority:p2`; replace that label immediately when the issue should be `p0`, `p1`, or `p3`.
+- The bundled execution templates default new issues to `priority:p2`; replace that label immediately when the issue should be `priority:p0`, `priority:p1`, or `priority:p3`.
 - When reprioritizing, replace the old priority label instead of stacking multiple priorities.
 - If the repo uses GitHub Projects, keep project status there rather than inventing another parallel tracker.

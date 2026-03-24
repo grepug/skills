@@ -45,7 +45,19 @@ def validate_root_files(errors: list[str]) -> None:
 
 
 def validate_mirrored_issue_templates(errors: list[str]) -> None:
-    if not MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.is_dir() or not MIRRORED_ISSUE_TEMPLATE_ROOT_DIR.is_dir():
+    skill_exists = MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.is_dir()
+    root_exists = MIRRORED_ISSUE_TEMPLATE_ROOT_DIR.is_dir()
+
+    if not skill_exists and not root_exists:
+        return
+
+    if skill_exists != root_exists:
+        fail(
+            errors,
+            "Mirrored issue templates are misconfigured: "
+            f"{MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.relative_to(ROOT)} and "
+            f"{MIRRORED_ISSUE_TEMPLATE_ROOT_DIR.relative_to(ROOT)} must either both exist or both be absent.",
+        )
         return
 
     skill_files = sorted(path.relative_to(MIRRORED_ISSUE_TEMPLATE_SKILL_DIR) for path in MIRRORED_ISSUE_TEMPLATE_SKILL_DIR.rglob("*") if path.is_file())
@@ -61,9 +73,9 @@ def validate_mirrored_issue_templates(errors: list[str]) -> None:
         return
 
     for relative_path in skill_files:
-        skill_text = (MIRRORED_ISSUE_TEMPLATE_SKILL_DIR / relative_path).read_text(encoding="utf-8")
-        root_text = (MIRRORED_ISSUE_TEMPLATE_ROOT_DIR / relative_path).read_text(encoding="utf-8")
-        if skill_text != root_text:
+        skill_bytes = (MIRRORED_ISSUE_TEMPLATE_SKILL_DIR / relative_path).read_bytes()
+        root_bytes = (MIRRORED_ISSUE_TEMPLATE_ROOT_DIR / relative_path).read_bytes()
+        if skill_bytes != root_bytes:
             fail(
                 errors,
                 "Mirrored issue template content differs for "
