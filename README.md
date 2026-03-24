@@ -48,10 +48,13 @@ Every public skill lives in `skills/<slug>/`. The only required file is `SKILL.m
 - `name`
 - `description`
 
+This repo also publishes example GitHub issue templates under `.github/ISSUE_TEMPLATE/` so issue-driven workflow patterns can be copied without reverse-engineering a consuming repo.
+
 ## Catalog
 
 | Skill | Purpose | Requirements | Status |
 | --- | --- | --- | --- |
+| `github-issue-workflow` | Track meaningful work through GitHub Issues, adopting repo-native templates and labels when present or falling back to a portable seed plus execution model | GitHub issue access, repo guidance such as `.github/ISSUE_TEMPLATE/` or docs, and a repo that wants issue-driven execution | Stable |
 | `module-boundary-governance` | Define and audit module boundary manifests so larger changes keep clear ownership, public API, and dependency direction | Existing repo structure or architecture docs, boundary-sensitive change, and a planning workflow such as `plan-driven-change` | Stable |
 | `plan-driven-change` | Approval-gated, plan-first workflow for larger multi-file or architectural changes | Project docs, known build/lint/test commands, user approval before implementation | Stable |
 | `xcode-archive-release` | Bump app version/build, archive an Xcode project, and upload to App Store Connect | macOS, Xcode, Apple Developer account, signed project | Stable |

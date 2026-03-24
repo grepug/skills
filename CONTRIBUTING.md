@@ -46,6 +46,14 @@ Before opening a PR or merging locally, check:
 - The root `README.md` catalog includes the new skill
 - The template is still representative of the current standard if conventions changed
 
+## GitHub issue workflow examples
+
+This repo ships example issue forms in `.github/ISSUE_TEMPLATE/` and label guidance in `.github/LABELS.md`.
+
+- Keep the skill's bundled defaults and the repo-level examples aligned when updating the GitHub issue workflow pattern
+- The repo-level issue forms must remain byte-for-byte aligned with `skills/github-issue-workflow/assets/issue-templates/`
+- Prefer portable field names and placeholders over repo-specific project IDs or team names
+
 ## Done criteria
 
 A new or updated skill is ready when:

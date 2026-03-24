@@ -1,0 +1,94 @@
+name: Research
+description: Investigation, spike, or decision-making work
+title: "research: "
+labels:
+  - type:research
+  - priority:p2
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Question to answer
+      placeholder: What decision or unknown are we trying to resolve?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this matters
+      placeholder: Why do we need this information now?
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Desired output
+      placeholder: e.g. recommendation, comparison, risk list, implementation direction
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Constraints / non-goals
+      placeholder: Clarify what this research should not drift into.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: What must the investigation produce to be considered complete?
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Initial priority
+      description: The bundled default label is `priority:p2`. If the selected value differs, replace the label after issue creation.
+      options:
+        - priority:p0
+        - priority:p1
+        - priority:p2
+        - priority:p3
+    validations:
+      required: true
+  - type: textarea
+    id: external_setup
+    attributes:
+      label: External setup dependencies
+      description: Research the official provider or platform docs first, then list the human-owned setup required before live verification can pass. Include the provider, exact setup required, the verification each item unlocks, and doc links. Write `None` if not applicable.
+      placeholder: |
+        Example:
+        - Vendor sandbox access
+          - Unlocks feasibility testing or live verification
+          - Docs: https://example.com/docs
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Affected repo area
+      placeholder: e.g. skills/github-issue-workflow, docs, .github
+    validations:
+      required: true
+  - type: input
+    id: milestone
+    attributes:
+      label: Roadmap milestone or planning bucket
+      placeholder: e.g. backlog, next, docs pass, catalog adoption, none
+    validations:
+      required: false
+  - type: input
+    id: ownership
+    attributes:
+      label: Owning layer or module
+      placeholder: e.g. skill packaging, repo workflow, docs
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Proof of completion
+      placeholder: Describe the evidence expected, such as a recommendation comment, comparison matrix, or doc update.
+    validations:
+      required: true

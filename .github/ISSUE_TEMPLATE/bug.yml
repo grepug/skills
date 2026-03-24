@@ -1,0 +1,104 @@
+name: Bug
+description: A defect that needs investigation and correction
+title: "bug: "
+labels:
+  - type:bug
+  - priority:p2
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Bug summary
+      placeholder: What is broken?
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Why this matters
+      placeholder: What user, workflow, or system impact does this bug cause?
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction or evidence
+      placeholder: Include repro steps, logs, screenshots, stack traces, or failing commands.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected outcome
+      placeholder: What should happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Constraints / non-goals
+      placeholder: Clarify what should not be broadened while fixing this bug.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: How will we know the bug is fixed?
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Initial priority
+      description: The bundled default label is `priority:p2`. If the selected value differs, replace the label after issue creation.
+      options:
+        - priority:p0
+        - priority:p1
+        - priority:p2
+        - priority:p3
+    validations:
+      required: true
+  - type: textarea
+    id: external_setup
+    attributes:
+      label: External setup dependencies
+      description: Research the official provider or platform docs first, then list the human-owned setup required before live verification can pass. Include the provider, exact setup required, the verification each item unlocks, and doc links. Write `None` if not applicable.
+      placeholder: |
+        Example:
+        - Provider sandbox account with the required scopes enabled
+          - Unlocks live bug verification against the real provider
+          - Docs: https://example.com/docs
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Affected repo area
+      placeholder: e.g. skills/github-issue-workflow, scripts/validate_skills.py, .github/ISSUE_TEMPLATE
+    validations:
+      required: true
+  - type: input
+    id: milestone
+    attributes:
+      label: Roadmap milestone or planning bucket
+      placeholder: e.g. backlog, next, docs pass, catalog adoption, none
+    validations:
+      required: false
+  - type: input
+    id: ownership
+    attributes:
+      label: Owning layer or module
+      placeholder: e.g. skills/github-issue-workflow, repo docs, GitHub workflow
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation commands
+      description: Narrow the proof to the touched surface only if that is intentional.
+      placeholder: |
+        python3 scripts/quick_validate_skill.py skills/<slug>
+        python3 scripts/validate_skills.py
+    validations:
+      required: true

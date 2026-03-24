@@ -1,0 +1,104 @@
+name: Feature
+description: Product, workflow, or catalog capability work
+title: "feat: "
+labels:
+  - type:feature
+  - priority:p2
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / request
+      placeholder: What are we building or changing, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why this matters
+      placeholder: Why is this worth doing now?
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      placeholder: Describe the visible finished behavior or artifact.
+    validations:
+      required: true
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Constraints / non-goals
+      placeholder: List what is explicitly out of scope.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: List the checks that determine this work is done.
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Initial priority
+      description: The bundled default label is `priority:p2`. If the selected value differs, replace the label after issue creation.
+      options:
+        - priority:p0
+        - priority:p1
+        - priority:p2
+        - priority:p3
+    validations:
+      required: true
+  - type: textarea
+    id: external_setup
+    attributes:
+      label: External setup dependencies
+      description: Research the official provider or platform docs first, then list the human-owned setup required before live verification can pass. Include the provider, exact setup required, the verification each item unlocks, and doc links. Write `None` if not applicable.
+      placeholder: |
+        Example:
+        - GitHub App installed with issues and metadata permissions in the target repo
+          - Unlocks live workflow verification
+          - Docs: https://docs.github.com/
+    validations:
+      required: true
+  - type: input
+    id: area
+    attributes:
+      label: Affected repo area
+      placeholder: e.g. skills/github-issue-workflow, scripts/validate_skills.py, .github/ISSUE_TEMPLATE
+    validations:
+      required: true
+  - type: input
+    id: milestone
+    attributes:
+      label: Roadmap milestone or planning bucket
+      placeholder: e.g. backlog, next, docs pass, catalog adoption, none
+    validations:
+      required: false
+  - type: input
+    id: ownership
+    attributes:
+      label: Owning layer or module
+      placeholder: e.g. skills/github-issue-workflow, repo docs, GitHub workflow
+    validations:
+      required: true
+  - type: textarea
+    id: validation
+    attributes:
+      label: Validation commands
+      description: If the issue does not intentionally narrow validation, use the repo defaults.
+      placeholder: |
+        python3 scripts/quick_validate_skill.py skills/<slug>
+        python3 scripts/validate_skills.py
+    validations:
+      required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Links / references
+      placeholder: Link related issues, official provider docs, design notes, or previous decisions.
+    validations:
+      required: false
