@@ -13,6 +13,17 @@ body:
     validations:
       required: true
   - type: textarea
+    id: reviewer_attention
+    attributes:
+      label: Reviewer attention
+      description: Put only the review hotspots here so humans and agents can see the risky surfaces quickly. Call out material dependency changes, schema or data model changes, architecture or boundary changes, migrations, rollout risks, config or secret changes, or external setup. Write `None` only if there is genuinely no special review hotspot.
+      placeholder: |
+        Example:
+        - Fix touches issue-template parsing logic shared by multiple skills; review for regressions in existing templates
+        - Requires a migration of stored issue metadata; review backward compatibility and recovery path
+    validations:
+      required: true
+  - type: textarea
     id: impact
     attributes:
       label: Why this matters

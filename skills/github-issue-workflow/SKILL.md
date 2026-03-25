@@ -11,6 +11,8 @@ Prefer the repo's existing GitHub workflow when it exists. Use the bundled defau
 
 When work depends on third-party, platform, or provider setup outside the repo, do not guess the setup contract and do not defer that research until implementation is already underway. Research the official documentation first, then capture the concrete dependency, how a human retrieves or configures it in the real world, and the verification it unlocks in the issue body before treating the issue as ready for execution.
 
+Execution issues should read like completed implementation plans, not placeholders for future discovery. If the work changes dependencies, data models, schemas, architecture, module boundaries, rollout shape, or other reviewer-sensitive surfaces, research and record those details before marking the issue ready. If that detail is still unknown, keep the work as a seed or research issue instead of presenting it as ready-to-build execution work.
+
 ## Use when
 
 - The user wants work tracked through GitHub Issues
@@ -32,6 +34,7 @@ Before creating or reshaping an issue workflow, inspect the repo in this order:
 2. repo docs for label policy, project usage, and planning rules
 3. existing issue labels and naming conventions if the user or tooling exposes them
 4. `AGENTS.md` or equivalent repo instructions for how tracked work should be executed
+5. the currently affected code, manifests, schemas, migrations, and module boundaries so the issue describes the real starting point instead of guesses
 
 If the repo already has templates, labels, or project rules, follow them.
 
@@ -46,13 +49,15 @@ If the repo has no established workflow, use the portable defaults bundled with 
 - `references/label-conventions.md`
 - `references/label-bootstrap.md`
 - `references/external-dependency-research.md`
+- `references/implementation-readiness.md`
 - `assets/canonical-plan-comment.md`
 
 When external dependencies are involved, extend discovery with one more required step before implementation:
 
-5. official provider or platform documentation for the required setup, configuration, limits, and verification prerequisites
+6. official provider or platform documentation for the required setup, configuration, limits, and verification prerequisites
 
-When that fifth step applies, use `references/external-dependency-research.md` to shape what must be researched and how the issue should record it.
+When that sixth step applies, use `references/external-dependency-research.md` to shape what must be researched and how the issue should record it.
+When the work changes dependencies, schemas, data models, architecture, or boundaries, also use `references/implementation-readiness.md` to shape the level of detail required before the issue is treated as ready.
 
 ## Default model when the repo has no workflow yet
 
@@ -84,6 +89,7 @@ Rules:
 - apply exactly one priority label from `priority:p0` to `priority:p3`
 - in the bundled default templates, execution issues start with `priority:p2`; if the issue needs a different priority, replace that label immediately after creation
 - keep one canonical implementation-plan comment for meaningful work
+- treat `type:research` as a bounded investigation issue, not as implementation authorization for follow-on code or config changes
 
 ## Seed promotion
 
@@ -123,6 +129,7 @@ Rules:
 
 Execution issues should capture:
 
+- reviewer-attention summary near the top of the body
 - problem or request
 - why it matters
 - desired outcome
@@ -133,6 +140,16 @@ Execution issues should capture:
 - owning layer or module
 - validation commands or proof of completion
 - optional links or references
+
+The reviewer-attention summary should stay concise and highlight only the change surfaces that deserve extra scrutiny from humans or agents, for example:
+
+- added or removed dependencies
+- database, schema, or migration changes
+- architecture or module-boundary changes
+- rollout, backfill, or compatibility risks
+- config, secrets, or external setup
+
+Use `None` only when there is genuinely no material review hotspot. Do not hide important review surfaces inside long prose elsewhere in the body.
 
 When external setup dependencies exist, the issue must also capture:
 
@@ -160,9 +177,29 @@ Rules:
 - never paste the contents of secrets into the issue body; record the secret name, source, format, owner, storage location, and retrieval path instead
 - do not write `TBD`, `guess`, or similar placeholders when the information can be determined from official docs
 - do not defer dependency research until implementation unless the user explicitly chooses that tradeoff
+- do not leave dependency additions, schema changes, architecture changes, migrations, or rollout shape as assumptions in a ready-for-implementation issue
 - if official docs are incomplete or contradictory, say that in the issue and record the remaining unknown precisely
 
 Use a milestone or planning-bucket field only when the repo actually uses one.
+
+## Implementation readiness gate
+
+Do not treat a `feature`, `bug`, or `infra` issue as implementation-ready until both of these are true:
+
+1. the issue body gives a short, prominent summary of the reviewer-attention hotspots
+2. the canonical plan comment elaborates the concrete implementation details for every hotspot
+
+When relevant, the canonical plan comment should make the following explicit:
+
+- current and planned dependency changes, including why each dependency is needed and why existing dependencies are insufficient
+- current and planned data model or schema changes, including migrations, backfills, compatibility concerns, and rollback or recovery notes when applicable
+- current and planned architecture or module-boundary changes, including the contracts being introduced or reshaped
+- external setup dependencies and the human steps required to satisfy them
+- rollout, operational, or verification constraints
+
+If those details are not yet known, the work is still in research. Do not disguise incomplete discovery as an execution-ready issue.
+
+`type:research` issues are different. They are execution-tracked investigations with explicit outputs and acceptance criteria, but they are not themselves implementation-ready contracts for code or configuration changes. Promote the result into a `feature`, `bug`, or `infra` issue when the work becomes concrete enough to build.
 
 ## Canonical plan comment
 
@@ -171,11 +208,13 @@ Use `assets/canonical-plan-comment.md` as the default structure when the repo do
 Rules:
 
 - keep it design-first and checklist-second
+- treat it as the completed implementation plan, not as a scratchpad for later discovery
 - map checklist items back to design sections
 - include explicit verification items
 - keep external setup as checklist items when live verification depends on it
 - append tweaks instead of starting a second live plan
 - do not start provider-dependent implementation from assumptions that have not been verified against official docs
+- do not omit dependency, schema, architecture, migration, or rollout detail when those surfaces are part of the change
 
 ## Labels
 
@@ -212,3 +251,4 @@ Successful use of this skill should leave:
 - `references/label-conventions.md` - portable label policy and meanings
 - `references/label-bootstrap.md` - how to create or sync the required label set in a repo that does not already have it
 - `references/external-dependency-research.md` - how to research and record real-world external setup requirements for issue bodies
+- `references/implementation-readiness.md` - how to research and record dependency, schema, architecture, and rollout detail before an execution issue is treated as ready
