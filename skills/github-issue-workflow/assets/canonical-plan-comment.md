@@ -8,6 +8,37 @@
 
 <2-4 focused sentences>
 
+## Reviewer Attention
+
+- <material review hotspot and why it needs attention>
+
+## Change Surface
+
+### Dependency changes
+
+- Current state: <what the repo uses today or `None`>
+- Planned change: <added, removed, or upgraded dependency, or `None`>
+- Where it integrates: <manifests, lockfiles, modules, commands, build steps, or `None`>
+- Operational impact: <config, credentials, platform, licensing, maintenance, or `None`>
+- Why this choice: <why this dependency or approach is needed>
+- Review focus: <what reviewers should scrutinize>
+
+### Data model / schema changes
+
+- Current state: <current model, schema, contract, or `None`>
+- Planned change: <what changes, or `None`>
+- Migration / compatibility: <migration, backfill, rollout, or `None`>
+- Risk / recovery: <breakage risk, rollback limits, monitoring, or `None`>
+- Review focus: <what reviewers should scrutinize>
+
+### Architecture / boundary changes
+
+- Current state: <current ownership or boundary, or `None`>
+- Planned change: <new ownership, contract, or boundary, or `None`>
+- Contracts: <interfaces, commands, events, schemas, or `None`>
+- Why this shape: <why this design fits the repo>
+- Review focus: <what reviewers should scrutinize>
+
 ## Design
 
 ### <Component or step>
@@ -29,6 +60,10 @@
 ## External Setup Dependencies
 
 - [ ] <provider or platform setup task> - unlocks `<verification or acceptance check>`
+
+## Rollout / Operational Notes
+
+- <compatibility, sequencing, backfill, recovery, or `None`>
 
 ## Checklist
 
