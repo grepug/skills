@@ -13,6 +13,17 @@ body:
     validations:
       required: true
   - type: textarea
+    id: reviewer_attention
+    attributes:
+      label: Reviewer attention
+      description: Put only the review hotspots here so humans and agents can see what parts of the investigation need special scrutiny. Call out dependency choices, schema questions, architecture tradeoffs, rollout concerns, or external setup that this research needs to resolve. Write `None` only if there is genuinely no special review hotspot.
+      placeholder: |
+        Example:
+        - Need a recommendation on whether to add a new dependency or reuse existing repo tooling
+        - Need a concrete read on whether the current schema can support the workflow without a migration
+    validations:
+      required: true
+  - type: textarea
     id: why
     attributes:
       label: Why this matters

@@ -52,11 +52,9 @@ If the repo has no established workflow, use the portable defaults bundled with 
 - `references/implementation-readiness.md`
 - `assets/canonical-plan-comment.md`
 
-When external dependencies are involved, extend discovery with one more required step before implementation:
+When external dependencies are involved, extend discovery with one more required step before implementation: inspect the official provider or platform documentation for the required setup, configuration, limits, and verification prerequisites.
 
-6. official provider or platform documentation for the required setup, configuration, limits, and verification prerequisites
-
-When that sixth step applies, use `references/external-dependency-research.md` to shape what must be researched and how the issue should record it.
+When that additional step applies, use `references/external-dependency-research.md` to shape what must be researched and how the issue should record it.
 When the work changes dependencies, schemas, data models, architecture, or boundaries, also use `references/implementation-readiness.md` to shape the level of detail required before the issue is treated as ready.
 
 ## Default model when the repo has no workflow yet
