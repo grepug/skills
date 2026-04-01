@@ -5,6 +5,10 @@ labels:
   - type:bug
   - priority:p2
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Write this issue in the repo working language defined in root `AGENTS.md`. If the repo does not define one, use English.
   - type: textarea
     id: problem
     attributes:
@@ -96,8 +100,9 @@ body:
   - type: input
     id: milestone
     attributes:
-      label: Roadmap milestone or planning bucket
-      placeholder: e.g. backlog, next, docs pass, catalog adoption, none
+      label: Milestone
+      description: Default to the open milestone selected by the skill milestone rule. If the repo has no milestones and you have permission, create and use `1.0`; otherwise leave this blank or ask a maintainer to set one. Any PR for this issue should inherit the same milestone.
+      placeholder: e.g. 1.0, 1.1, 2026-04
     validations:
       required: false
   - type: input
