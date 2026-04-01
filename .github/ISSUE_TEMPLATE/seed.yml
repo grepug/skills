@@ -7,6 +7,8 @@ body:
   - type: markdown
     attributes:
       value: |
+        Write this issue in the repo working language defined in root `AGENTS.md`. If the repo does not define one, use English.
+
         Use a seed to capture an idea without turning it into backlog commitment yet.
 
         Seed issues:

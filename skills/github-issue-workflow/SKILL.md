@@ -62,7 +62,10 @@ When the work changes dependencies, schemas, data models, architecture, or bound
 - treat root `AGENTS.md` as the source of truth for the repo's working language
 - if root `AGENTS.md` does not define a working language, default to English
 - write issues and PRs in the repo's working language instead of the agent's default language
-- assign each new issue to the open milestone with the nearest due date
+- assign each new issue to an open milestone using this deterministic rule:
+  - prefer open milestones that have a due date; among them choose the one with the nearest due date
+  - if multiple open milestones share that nearest due date, choose the one most recently updated
+  - if no open milestones have a due date, choose the open milestone whose title is the lowest semantic version; if no titles look like semantic versions, choose the most recently updated open milestone
 - if the repo has no milestones yet, create milestone `1.0` and use it
 - when opening a PR for an issue, derive the PR milestone from the linked issue instead of choosing one independently
 
@@ -188,7 +191,7 @@ Rules:
 - do not leave dependency additions, schema changes, architecture changes, migrations, or rollout shape as assumptions in a ready-for-implementation issue
 - if official docs are incomplete or contradictory, say that in the issue and record the remaining unknown precisely
 
-Use milestones as the default planning bucket for tracked work. Pick the open milestone with the nearest due date, create `1.0` if the repo has no milestones, and keep PR milestones aligned to the linked issue.
+Use milestones as the default planning bucket for tracked work. Choose them with the deterministic rule above, create `1.0` if the repo has no milestones, and keep PR milestones aligned to the linked issue.
 
 ## Implementation readiness gate
 
