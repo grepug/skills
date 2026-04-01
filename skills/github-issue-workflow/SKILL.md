@@ -33,7 +33,7 @@ Before creating or reshaping an issue workflow, inspect the repo in this order:
 1. `.github/ISSUE_TEMPLATE/` for existing issue classes and required fields
 2. repo docs for label policy, project usage, and planning rules
 3. existing issue labels and naming conventions if the user or tooling exposes them
-4. `AGENTS.md` or equivalent repo instructions for how tracked work should be executed
+4. root `AGENTS.md` for the repo's working language, plus any equivalent repo instructions for repo-specific issue or PR workflow rules
 5. the currently affected code, manifests, schemas, migrations, and module boundaries so the issue describes the real starting point instead of guesses
 
 If the repo already has templates, labels, or project rules, follow them.
@@ -56,6 +56,15 @@ When external dependencies are involved, extend discovery with one more required
 
 When that additional step applies, use `references/external-dependency-research.md` to shape what must be researched and how the issue should record it.
 When the work changes dependencies, schemas, data models, architecture, or boundaries, also use `references/implementation-readiness.md` to shape the level of detail required before the issue is treated as ready.
+
+## Working language and milestone defaults
+
+- treat root `AGENTS.md` as the source of truth for the repo's working language
+- if root `AGENTS.md` does not define a working language, default to English
+- write issues and PRs in the repo's working language instead of the agent's default language
+- assign each new issue to the open milestone with the nearest due date
+- if the repo has no milestones yet, create milestone `1.0` and use it
+- when opening a PR for an issue, derive the PR milestone from the linked issue instead of choosing one independently
 
 ## Default model when the repo has no workflow yet
 
@@ -122,6 +131,7 @@ Rules:
 - the plan comment is the rich design, checklist, verification trail, and tweaks log
 - avoid multiple active plan comments
 - if the repo uses a GitHub Project, keep status there instead of inventing another tracker
+- keep issue and PR language aligned with the repo working language declared in root `AGENTS.md`, or English when no language is declared
 
 ## Issue body requirements
 
@@ -178,7 +188,7 @@ Rules:
 - do not leave dependency additions, schema changes, architecture changes, migrations, or rollout shape as assumptions in a ready-for-implementation issue
 - if official docs are incomplete or contradictory, say that in the issue and record the remaining unknown precisely
 
-Use a milestone or planning-bucket field only when the repo actually uses one.
+Use milestones as the default planning bucket for tracked work. Pick the open milestone with the nearest due date, create `1.0` if the repo has no milestones, and keep PR milestones aligned to the linked issue.
 
 ## Implementation readiness gate
 
