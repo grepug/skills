@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
-import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,6 +16,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 SKILL_DIR = SCRIPT_DIR.parent
 PR_TEMPLATE_PATH = SKILL_DIR / "assets" / "pull-request-body.md"
 CANONICAL_PLAN_MARKER = "**Use this comment for:**"
+CHECKLIST_PATTERN = re.compile(r"^[*-]\s*\[( |x|X)\]\s*(.*)$")
 
 
 @dataclass
@@ -170,15 +171,12 @@ def parse_checklist(markdown: str, source: str) -> list[ChecklistItem]:
             continue
 
         stripped = line.strip()
-        if len(stripped) < 6:
+        match = CHECKLIST_PATTERN.match(stripped)
+        if match is None:
             continue
-        prefix = stripped[:6].lower()
-        if prefix.startswith("- [") or prefix.startswith("* ["):
-            checked = prefix[3] == "x"
-            if prefix[4] != "]":
-                continue
-            text = stripped[6:].strip()
-            items.append(ChecklistItem(source=source, section=section, text=text, checked=checked))
+        checked = match.group(1).lower() == "x"
+        text = match.group(2).strip()
+        items.append(ChecklistItem(source=source, section=section, text=text, checked=checked))
     return items
 
 
