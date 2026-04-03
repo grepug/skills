@@ -65,6 +65,13 @@
 
 - <compatibility, sequencing, backfill, recovery, or `None`>
 
+## Closeout Contract
+
+- Re-read the issue body and acceptance criteria before opening or updating a PR.
+- Reconcile this checklist against the shipped code; do not leave implementation items unchecked because the work moved to PR review.
+- Open or update a PR that closes the linked issue and carries a short closeout checklist derived from this issue.
+- Treat unchecked implementation items in the issue body or this comment as blockers for PR readiness.
+
 ## Checklist
 
 ### Phase 1 - <name>

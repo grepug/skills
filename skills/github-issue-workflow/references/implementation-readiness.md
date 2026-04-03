@@ -98,3 +98,16 @@ Before treating the issue as ready, ask:
 - Does it explain why the chosen dependency or design is being used?
 - Does it distinguish between reversible and irreversible changes?
 - Does it make rollout and verification explicit where relevant?
+
+## Completion rule
+
+Implementation is not complete when code lands on a branch. It is complete when the execution surfaces still agree after implementation.
+
+Before opening or updating the PR, verify all of the following:
+
+- the issue body still matches the shipped scope
+- the canonical plan comment checklist has been reconciled against the shipped code
+- no implementation checklist item remains unchecked in the issue body or the canonical plan comment
+- the PR body closes the linked issue and summarizes closeout instead of inventing a different checklist
+
+If those conditions are not true yet, the work is still in execution even if the code is already written.

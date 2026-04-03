@@ -50,7 +50,10 @@ If the repo has no established workflow, use the portable defaults bundled with 
 - `references/label-bootstrap.md`
 - `references/external-dependency-research.md`
 - `references/implementation-readiness.md`
+- `references/issue-pr-closeout.md`
 - `assets/canonical-plan-comment.md`
+- `assets/pull-request-body.md`
+- `scripts/issue_pr_closeout.py`
 
 When external dependencies are involved, extend discovery with one more required step before implementation: inspect the official provider or platform documentation for the required setup, configuration, limits, and verification prerequisites.
 
@@ -126,15 +129,38 @@ For meaningful execution work, keep these aligned:
 
 1. Issue body
 2. One canonical implementation-plan comment
-3. Optional GitHub Project item when the repo uses projects
+3. Pull request body once implementation starts or finishes
+4. Optional GitHub Project item when the repo uses projects
 
 Rules:
 
 - the issue body is the stable request contract
 - the plan comment is the rich design, checklist, verification trail, and tweaks log
+- the PR body is the closeout contract; derive it from the issue and plan comment instead of inventing a second scope
 - avoid multiple active plan comments
 - if the repo uses a GitHub Project, keep status there instead of inventing another tracker
 - keep issue and PR language aligned with the repo working language declared in root `AGENTS.md`, or English when no language is declared
+
+## Execution closeout gate
+
+Do not treat implementation as complete just because code exists locally or a branch has been pushed.
+
+Before opening or updating a PR for an execution issue, do all of the following in this order:
+
+1. Re-read the issue body, especially acceptance criteria and constraints
+2. Re-read the canonical plan comment and reconcile every implementation checklist item against the shipped code
+3. Finish, remove, or explicitly rewrite any stale unchecked checklist item in the issue or plan comment before claiming the work is done
+4. Generate or update the PR body from the linked issue instead of writing it from memory
+5. Open or update a PR that closes the issue directly
+
+Rules:
+
+- do not leave issue checklist items unchecked merely because the work has moved into PR review
+- do not leave PR checklists drifting from the issue; the PR should summarize closeout, not replace the source-of-truth issue
+- treat unchecked implementation items in the issue body or canonical plan comment as blockers for PR readiness
+- for repos using the bundled defaults, use `scripts/issue_pr_closeout.py` as the local closeout gate before opening or updating the PR
+- if the script reports unresolved checklist items or a missing canonical plan comment, fix the issue state first instead of bypassing the gate
+- when the issue is fully implemented, automatically create the PR instead of waiting for a separate prompt
 
 ## Issue body requirements
 
@@ -223,9 +249,12 @@ Rules:
 - map checklist items back to design sections
 - include explicit verification items
 - keep external setup as checklist items when live verification depends on it
+- include the closeout contract so agents know they must revisit this comment before PR creation
 - append tweaks instead of starting a second live plan
 - do not start provider-dependent implementation from assumptions that have not been verified against official docs
 - do not omit dependency, schema, architecture, migration, or rollout detail when those surfaces are part of the change
+
+When the repo uses the bundled defaults, read `references/issue-pr-closeout.md` before opening the PR and use `scripts/issue_pr_closeout.py` to audit the issue state and create or update the PR body locally.
 
 ## Labels
 
@@ -252,6 +281,8 @@ Successful use of this skill should leave:
 - the right issue class created or updated
 - a clear stable issue body
 - one canonical implementation-plan comment when the work is meaningful
+- a PR that links back to the issue and closes it directly when the issue is fully implemented
+- no unchecked implementation checklist items left behind in the issue body or canonical plan comment at PR open time
 - labels applied according to repo policy or the portable defaults
 - no competing repo-local plan or todo file acting as the live tracker
 
@@ -259,7 +290,10 @@ Successful use of this skill should leave:
 
 - `assets/issue-templates/*.yml` - portable issue form defaults for repos that have no issue templates yet
 - `assets/canonical-plan-comment.md` - default implementation-plan comment structure
+- `assets/pull-request-body.md` - default PR closeout body structure derived from the linked issue
 - `references/label-conventions.md` - portable label policy and meanings
 - `references/label-bootstrap.md` - how to create or sync the required label set in a repo that does not already have it
 - `references/external-dependency-research.md` - how to research and record real-world external setup requirements for issue bodies
 - `references/implementation-readiness.md` - how to research and record dependency, schema, architecture, and rollout detail before an execution issue is treated as ready
+- `references/issue-pr-closeout.md` - local issue-to-PR closeout workflow and command examples
+- `scripts/issue_pr_closeout.py` - local audit and PR creation helper for the bundled closeout workflow
