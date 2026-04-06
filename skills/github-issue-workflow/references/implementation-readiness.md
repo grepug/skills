@@ -60,8 +60,8 @@ For every layering, ownership, or contract change:
    - What will own it after the change
 3. `Contracts`
    - Interfaces, commands, events, schemas, or file boundaries being introduced or changed
-4. `Why this shape`
-   - Why this design fits the repo better than the nearest alternative
+4. `Decision basis`
+   - The concrete repo constraint, requirement, or compatibility fact that makes this chosen design necessary
 5. `Review hotspot`
    - What a reviewer should pay attention to
 
@@ -84,9 +84,11 @@ Use two layers:
    - Keep it short and readable
    - Add a required `Reviewer attention` summary near the top
    - Summarize only the hotspots, not all backing detail
+   - Record the selected scope only; do not add `Options considered`, alternatives, pros / cons, or recommendation sections
 2. `Canonical plan comment`
    - Record the researched implementation detail for each hotspot
    - Treat this as the authoritative implementation plan
+   - Record the chosen design and supporting facts, not a comparison between options
 
 ## Review rule
 

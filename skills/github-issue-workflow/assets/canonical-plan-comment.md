@@ -3,6 +3,7 @@
 **Status:** Draft | Ready for implementation
 **Target paths:** `path/to/area`
 **Use this comment for:** live checklist updates, plan edits, boundary notes, validation results, and post-implementation tweaks
+**Do not use this comment for:** option comparisons, pros / cons lists, recommendation sections, or other ambiguous analysis
 
 ## Context
 
@@ -47,7 +48,7 @@
 - Interface or contract: `<signature or artifact shape>`
 - Rationale: <why this shape fits the repo>
 
-> **Why X not Y:** <one-sentence tradeoff>
+> **Decision basis:** <one sentence naming the concrete repo constraint or requirement that makes this shape necessary>
 
 ## Boundary
 
