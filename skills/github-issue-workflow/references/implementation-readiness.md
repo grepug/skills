@@ -112,4 +112,10 @@ Before opening or updating the PR, verify all of the following:
 - no implementation checklist item remains unchecked in the issue body or the canonical plan comment
 - the PR body closes the linked issue and summarizes closeout instead of inventing a different checklist
 
+Before merging the PR on user request, verify all of the following:
+
+- no PR checklist item remains unchecked
+- every additional issue the PR closes has reconciled issue and canonical-plan checklist state
+- any merge blocker is reported and worked through instead of being bypassed
+
 If those conditions are not true yet, the work is still in execution even if the code is already written.

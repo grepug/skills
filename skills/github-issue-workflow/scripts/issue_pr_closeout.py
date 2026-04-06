@@ -64,13 +64,43 @@ class AuditResult:
         return problems
 
 
+@dataclass
+class PullRequestAudit:
+    pr: dict[str, Any]
+    pr_items: list[ChecklistItem]
+    linked_issue: AuditResult
+    related_issues: list[AuditResult]
+
+    @property
+    def open_pr_items(self) -> list[ChecklistItem]:
+        return [item for item in self.pr_items if not item.checked]
+
+    @property
+    def blockers(self) -> list[str]:
+        problems: list[str] = []
+        if self.open_pr_items:
+            problems.append(f"PR body still has {len(self.open_pr_items)} unchecked checklist item(s).")
+        if not pr_closes_issue(self.pr, self.linked_issue.issue["number"]):
+            problems.append(
+                f"PR #{self.pr['number']} does not close linked issue #{self.linked_issue.issue['number']}."
+            )
+        if self.linked_issue.blockers:
+            problems.extend(f"Linked issue #{self.linked_issue.issue['number']}: {blocker}" for blocker in self.linked_issue.blockers)
+        for related_issue in self.related_issues:
+            if related_issue.blockers:
+                problems.extend(
+                    f"Related issue #{related_issue.issue['number']}: {blocker}" for blocker in related_issue.blockers
+                )
+        return problems
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Audit GitHub issue checklist state and create or update a PR only after closeout passes.",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    for name in ("audit", "pr-body", "open-pr"):
+    for name in ("audit", "pr-body", "open-pr", "merge-pr"):
         subparser = subparsers.add_parser(name)
         add_common_args(subparser)
         if name in {"pr-body", "open-pr"}:
@@ -95,6 +125,30 @@ def build_parser() -> argparse.ArgumentParser:
             subparser.add_argument("--head", help="Head branch for gh pr create and gh pr edit.")
             subparser.add_argument("--draft", action="store_true", help="Create the PR as a draft.")
             subparser.add_argument("--dry-run", action="store_true", help="Print the body and planned gh command without creating or editing a PR.")
+        if name == "merge-pr":
+            subparser.add_argument("--pr", help="PR number, URL, or branch. Defaults to the current branch's PR.")
+            subparser.add_argument(
+                "--method",
+                choices=("merge", "squash", "rebase"),
+                default="merge",
+                help="Merge strategy to pass to gh pr merge. Defaults to merge.",
+            )
+            subparser.add_argument(
+                "--related-issue",
+                action="append",
+                default=[],
+                help="Extra related issue number or URL to audit before merge. Repeat to add more issues.",
+            )
+            subparser.add_argument(
+                "--delete-branch",
+                action="store_true",
+                help="Delete the PR branch after a successful merge.",
+            )
+            subparser.add_argument(
+                "--dry-run",
+                action="store_true",
+                help="Print the merge audit and planned gh command without merging.",
+            )
 
     return parser
 
@@ -137,6 +191,22 @@ def fetch_issue(issue_ref: str, repo: str | None) -> dict[str, Any]:
     return json.loads(result.stdout)
 
 
+def fetch_pr(pr_ref: str, repo: str | None) -> dict[str, Any]:
+    result = run_command(
+        gh_command(
+            repo,
+            "pr",
+            "view",
+            pr_ref,
+            "--json",
+            "number,title,body,url,isDraft,closingIssuesReferences",
+        )
+    )
+    if result.returncode != 0:
+        raise SystemExit(result.stderr.strip() or result.stdout.strip() or "Failed to fetch PR.")
+    return json.loads(result.stdout)
+
+
 def normalize_comments(raw_comments: Any) -> list[dict[str, Any]]:
     if isinstance(raw_comments, list):
         return [comment for comment in raw_comments if isinstance(comment, dict)]
@@ -144,6 +214,16 @@ def normalize_comments(raw_comments: Any) -> list[dict[str, Any]]:
         nodes = raw_comments.get("nodes")
         if isinstance(nodes, list):
             return [comment for comment in nodes if isinstance(comment, dict)]
+    return []
+
+
+def normalize_issue_refs(raw_refs: Any) -> list[dict[str, Any]]:
+    if isinstance(raw_refs, list):
+        return [issue for issue in raw_refs if isinstance(issue, dict)]
+    if isinstance(raw_refs, dict):
+        nodes = raw_refs.get("nodes")
+        if isinstance(nodes, list):
+            return [issue for issue in nodes if isinstance(issue, dict)]
     return []
 
 
@@ -201,6 +281,83 @@ def audit_issue(issue_ref: str, repo: str | None) -> AuditResult:
         plan_comment=plan_comment,
         issue_items=issue_items,
         plan_items=plan_items,
+    )
+
+
+def parse_issue_number(issue_ref: str) -> int | None:
+    ref = issue_ref.strip()
+    if ref.isdigit():
+        return int(ref)
+    match = re.search(r"/issues/(\d+)$", ref)
+    if match:
+        return int(match.group(1))
+    return None
+
+
+def pr_closes_issue(pr: dict[str, Any], issue_number: int) -> bool:
+    for issue in normalize_issue_refs(pr.get("closingIssuesReferences")):
+        if issue.get("number") == issue_number:
+            return True
+    return False
+
+
+def resolve_pr_reference(pr_ref: str | None, repo: str | None) -> str:
+    if pr_ref:
+        return pr_ref
+
+    branch = current_branch()
+    existing_pr = find_existing_pr(branch, repo)
+    if existing_pr is None:
+        raise SystemExit(f"No PR found for current branch '{branch}'.")
+    return str(existing_pr["number"])
+
+
+def collect_related_issue_refs(
+    pr: dict[str, Any],
+    primary_issue_number: int,
+    extra_issue_refs: list[str],
+) -> list[str]:
+    seen: set[int] = {primary_issue_number}
+    refs: list[str] = []
+
+    for issue in normalize_issue_refs(pr.get("closingIssuesReferences")):
+        number = issue.get("number")
+        if isinstance(number, int) and number not in seen:
+            seen.add(number)
+            refs.append(str(number))
+
+    for issue_ref in extra_issue_refs:
+        number = parse_issue_number(issue_ref)
+        if number is None:
+            refs.append(issue_ref)
+            continue
+        if number in seen:
+            continue
+        seen.add(number)
+        refs.append(str(number))
+
+    return refs
+
+
+def audit_pr_merge(
+    issue_ref: str,
+    repo: str | None,
+    pr_ref: str | None,
+    extra_related_issue_refs: list[str],
+) -> PullRequestAudit:
+    linked_issue = audit_issue(issue_ref, repo)
+    pr = fetch_pr(resolve_pr_reference(pr_ref, repo), repo)
+    pr_items = parse_checklist(str(pr.get("body", "")), source="pr")
+
+    primary_issue_number = int(linked_issue.issue["number"])
+    related_issue_refs = collect_related_issue_refs(pr, primary_issue_number, extra_related_issue_refs)
+    related_issues = [audit_issue(related_issue_ref, repo) for related_issue_ref in related_issue_refs]
+
+    return PullRequestAudit(
+        pr=pr,
+        pr_items=pr_items,
+        linked_issue=linked_issue,
+        related_issues=related_issues,
     )
 
 
@@ -315,6 +472,33 @@ def print_audit(audit: AuditResult) -> None:
             print(f"- {blocker}")
 
 
+def print_merge_audit(audit: PullRequestAudit) -> None:
+    linked_issue = audit.linked_issue
+    print(f"PR #{audit.pr['number']}: {audit.pr['title']}")
+    print(f"PR URL: {audit.pr['url']}")
+    print(f"Linked issue #{linked_issue.issue['number']}: {linked_issue.issue['title']}")
+    print(f"PR checklist items: {len(audit.pr_items)} total, {len(audit.open_pr_items)} open")
+
+    if audit.open_pr_items:
+        print("\nOpen PR checklist items:")
+        print(format_items(audit.open_pr_items))
+
+    print("\nLinked issue audit:")
+    print_audit(linked_issue)
+
+    for related_issue in audit.related_issues:
+        print(f"\nRelated issue audit: #{related_issue.issue['number']} {related_issue.issue['title']}")
+        print_audit(related_issue)
+
+    if audit.blockers:
+        print("\nMerge blockers:")
+        for blocker in audit.blockers:
+            print(f"- {blocker}")
+        print("\nNext steps:")
+        print("- Finish the work behind each unchecked item, or rewrite/remove stale checklist items before retrying merge.")
+        print("- Re-run merge-pr after the PR, linked issue, and related issue state all agree.")
+
+
 def open_or_update_pr(
     audit: AuditResult,
     repo: str | None,
@@ -402,9 +586,57 @@ def open_or_update_pr(
         body_path.unlink(missing_ok=True)
 
 
+def merge_pull_request(
+    audit: PullRequestAudit,
+    repo: str | None,
+    method: str,
+    delete_branch: bool,
+    dry_run: bool,
+) -> None:
+    if audit.blockers:
+        print_merge_audit(audit)
+        raise SystemExit(1)
+
+    merge_command = gh_command(
+        repo,
+        "pr",
+        "merge",
+        str(audit.pr["number"]),
+        f"--{method}",
+    )
+    if delete_branch:
+        merge_command.append("--delete-branch")
+
+    if dry_run:
+        print_merge_audit(audit)
+        print("\nWould run:")
+        print(" ".join(merge_command))
+        return
+
+    result = run_command(merge_command)
+    if result.returncode != 0:
+        raise SystemExit(result.stderr.strip() or result.stdout.strip() or "Failed to merge PR.")
+    print(result.stdout.strip())
+
+
 def main() -> int:
     parser = build_parser()
     args = parser.parse_args()
+
+    if args.command == "merge-pr":
+        merge_audit = audit_pr_merge(args.issue, args.repo, args.pr, args.related_issue)
+        if merge_audit.blockers:
+            print_merge_audit(merge_audit)
+            return 1
+        merge_pull_request(
+            audit=merge_audit,
+            repo=args.repo,
+            method=args.method,
+            delete_branch=args.delete_branch,
+            dry_run=args.dry_run,
+        )
+        return 0
+
     audit = audit_issue(args.issue, args.repo)
 
     if args.command == "audit":
