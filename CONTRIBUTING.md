@@ -53,6 +53,7 @@ This repo ships example issue forms in `.github/ISSUE_TEMPLATE/` and label guida
 - Keep the skill's bundled defaults and the repo-level examples aligned when updating the GitHub issue workflow pattern
 - The repo-level issue forms must remain byte-for-byte aligned with `skills/github-issue-workflow/assets/issue-templates/`
 - Prefer portable field names and placeholders over repo-specific project IDs or team names
+- Keep issue and canonical-plan examples deterministic; do not introduce sections such as `Options considered`, alternatives, pros / cons, or recommendation blocks
 
 ## Done criteria
 
