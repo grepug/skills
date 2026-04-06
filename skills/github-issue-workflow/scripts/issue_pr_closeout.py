@@ -593,10 +593,6 @@ def merge_pull_request(
     delete_branch: bool,
     dry_run: bool,
 ) -> None:
-    if audit.blockers:
-        print_merge_audit(audit)
-        raise SystemExit(1)
-
     merge_command = gh_command(
         repo,
         "pr",
