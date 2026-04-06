@@ -9,6 +9,8 @@ body:
     attributes:
       value: |
         Write this issue in the repo working language defined in root `AGENTS.md`. If the repo does not define one, use English.
+
+        Keep the issue deterministic. Record the research question, required output, constraints, and acceptance criteria only. Do not include sections such as `Options considered`, alternatives, pros / cons, tradeoff matrices, or recommendations in the issue body itself.
   - type: textarea
     id: question
     attributes:
@@ -38,7 +40,7 @@ body:
     id: output
     attributes:
       label: Desired output
-      placeholder: e.g. recommendation, comparison, risk list, implementation direction
+      placeholder: e.g. documented decision, risk list, implementation direction, feasibility notes
     validations:
       required: true
   - type: textarea
@@ -109,6 +111,6 @@ body:
     id: validation
     attributes:
       label: Proof of completion
-      placeholder: Describe the evidence expected, such as a recommendation comment, comparison matrix, or doc update.
+      placeholder: Describe the evidence expected, such as a decision comment, risk write-up, or doc update.
     validations:
       required: true

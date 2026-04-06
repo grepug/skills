@@ -137,6 +137,8 @@ Rules:
 - the issue body is the stable request contract
 - the plan comment is the rich design, checklist, verification trail, and tweaks log
 - the PR body is the closeout contract; derive it from the issue and plan comment instead of inventing a second scope
+- keep both the issue body and the plan comment deterministic: record the chosen scope, facts, contracts, and verification only
+- do not include sections such as `Options considered`, `Alternatives`, `Pros / cons`, `Tradeoff matrix`, or `Recommendation` in issue content
 - avoid multiple active plan comments
 - if the repo uses a GitHub Project, keep status there instead of inventing another tracker
 - keep issue and PR language aligned with the repo working language declared in root `AGENTS.md`, or English when no language is declared
@@ -177,6 +179,8 @@ Execution issues should capture:
 - owning layer or module
 - validation commands or proof of completion
 - optional links or references
+
+Execution issue bodies must describe the selected contract only. Do not embed rejected alternatives, comparison tables, pros / cons lists, or recommendation prose in the issue body. If the work still depends on comparing options, keep it as `type:research` until the execution contract is fixed.
 
 The reviewer-attention summary should stay concise and highlight only the change surfaces that deserve extra scrutiny from humans or agents, for example:
 
@@ -238,6 +242,8 @@ If those details are not yet known, the work is still in research. Do not disgui
 
 `type:research` issues are different. They are execution-tracked investigations with explicit outputs and acceptance criteria, but they are not themselves implementation-ready contracts for code or configuration changes. Promote the result into a `feature`, `bug`, or `infra` issue when the work becomes concrete enough to build.
 
+Even for `type:research`, keep the issue body deterministic: state the research question, required output, constraints, and acceptance criteria, not the option analysis itself.
+
 ## Canonical plan comment
 
 Use `assets/canonical-plan-comment.md` as the default structure when the repo does not already have one.
@@ -247,6 +253,7 @@ Rules:
 - keep it design-first and checklist-second
 - treat it as the completed implementation plan, not as a scratchpad for later discovery
 - map checklist items back to design sections
+- record the selected implementation shape only; do not add alternative-analysis sections such as `Options considered`, `Alternatives`, or `Recommendation`
 - include explicit verification items
 - keep external setup as checklist items when live verification depends on it
 - include the closeout contract so agents know they must revisit this comment before PR creation
