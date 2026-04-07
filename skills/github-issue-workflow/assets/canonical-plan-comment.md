@@ -5,6 +5,8 @@
 **Use this comment for:** live checklist updates, plan edits, boundary notes, validation results, and post-implementation tweaks
 **Do not use this comment for:** option comparisons, alternatives sections, pros / cons lists, tradeoff matrices, or recommendation sections
 **Any rationale in this comment must be:** concrete, fact-based, and tied to repo constraints, requirements, or compatibility needs
+**Separate issue-thread status comments, if needed, must contain only:** current state, the selected next slice, blockers, validation, and concrete human follow-up
+**Do not post follow-up issue-thread comments with:** `Execution is not started yet`, `Next runs`, `Run options`, or option menus
 
 ## Context
 

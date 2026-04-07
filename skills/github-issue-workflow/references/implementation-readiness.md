@@ -78,7 +78,7 @@ For every change with operational or staged risk:
 
 ## Where to put the detail
 
-Use two layers:
+Use two required layers, plus an optional third only when there is new execution state to record before PR closeout:
 
 1. `Issue body`
    - Keep it short and readable
@@ -91,6 +91,10 @@ Use two layers:
    - Record the concrete anchors that prove the current state so the plan is grounded in real code or system evidence
    - Treat this as the authoritative implementation plan
    - Record the chosen design and supporting facts, not a comparison between options
+3. `Deterministic execution-status comment`
+   - Use only when there is a new execution fact that does not belong in the issue body, canonical plan comment, or PR body yet
+   - Record only the current state, the single selected next slice, blockers, validation, and any concrete human follow-up needed
+   - Do not mirror conversational `next runs`, option menus, or recommendation prose into the issue thread
 
 ## Review rule
 

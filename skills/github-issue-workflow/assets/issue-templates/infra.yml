@@ -11,6 +11,7 @@ body:
         Write this issue in the repo working language defined in root `AGENTS.md`. If the repo does not define one, use English.
 
         Keep the issue deterministic. Record only the chosen scope, concrete infra facts, and acceptance criteria. Do not include sections such as `Options considered`, alternatives, pros / cons, tradeoff matrices, or recommendations.
+        Apply the same deterministic rule to later issue-thread comments: keep them factual and do not add `Execution is not started yet`, `Next runs`, `Run options`, or recommendation blocks.
   - type: textarea
     id: problem
     attributes:

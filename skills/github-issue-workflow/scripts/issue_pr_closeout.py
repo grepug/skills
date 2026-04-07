@@ -22,6 +22,40 @@ DRAFT_PR_PATTERN = re.compile(
     r"\b(?:belongs to draft (?:pr|pull request)|draft[- ]pr[- ]only(?: findings?)?)\b",
     re.IGNORECASE,
 )
+NON_DETERMINISTIC_COMMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    (
+        "execution-is-not-started marker",
+        re.compile(r"^\s*(?:#+\s*)?execution is not started yet\.?\s*$", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "next-runs block",
+        re.compile(r"^\s*(?:#+\s*)?next runs:?\s*$", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "run-options block",
+        re.compile(r"^\s*(?:#+\s*)?run options:?\s*$", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "option line",
+        re.compile(r"^\s*(?:#+\s*|[-*]\s*)?option [a-z0-9]+\b(?:\s*[:.)-])?", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "options-considered section",
+        re.compile(r"^\s*(?:#+\s*)?options considered\b", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "alternatives section",
+        re.compile(r"^\s*(?:#+\s*)?alternatives\b", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "tradeoff-matrix section",
+        re.compile(r"^\s*(?:#+\s*)?tradeoff matrix\b", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "recommendation section",
+        re.compile(r"^\s*(?:#+\s*)?recommendation\b", re.IGNORECASE | re.MULTILINE),
+    ),
+)
 
 
 @dataclass
@@ -33,11 +67,19 @@ class ChecklistItem:
 
 
 @dataclass
+class CommentProblem:
+    url: str
+    summary: str
+    markers: list[str]
+
+
+@dataclass
 class AuditResult:
     issue: dict[str, Any]
     plan_comment: dict[str, Any] | None
     issue_items: list[ChecklistItem]
     plan_items: list[ChecklistItem]
+    comment_problems: list[CommentProblem]
 
     @property
     def canonical_thread_blockers(self) -> list[str]:
@@ -83,6 +125,10 @@ class AuditResult:
         if self.blocking_plan_items:
             problems.append(
                 f"Canonical plan comment still has {len(self.blocking_plan_items)} unchecked implementation checklist item(s)."
+            )
+        if self.comment_problems:
+            problems.append(
+                f"Issue thread still has {len(self.comment_problems)} non-deterministic execution comment(s)."
             )
         return problems
 
@@ -314,6 +360,41 @@ def find_canonical_plan_comment(issue: dict[str, Any]) -> dict[str, Any] | None:
     return None
 
 
+def comment_summary(body: str) -> str:
+    for raw_line in body.splitlines():
+        line = raw_line.strip()
+        if line:
+            return line[:120]
+    return "(empty comment)"
+
+
+def find_non_deterministic_comment_problems(
+    issue: dict[str, Any],
+    plan_comment: dict[str, Any] | None,
+) -> list[CommentProblem]:
+    plan_comment_id = plan_comment.get("id") if plan_comment else None
+    problems: list[CommentProblem] = []
+    for comment in normalize_comments(issue.get("comments")):
+        if plan_comment_id is not None and comment.get("id") == plan_comment_id:
+            continue
+        body = str(comment.get("body", ""))
+        markers = [
+            label
+            for label, pattern in NON_DETERMINISTIC_COMMENT_PATTERNS
+            if pattern.search(body)
+        ]
+        if not markers:
+            continue
+        problems.append(
+            CommentProblem(
+                url=str(comment.get("url") or issue.get("url") or ""),
+                summary=comment_summary(body),
+                markers=markers,
+            )
+        )
+    return problems
+
+
 def parse_checklist(markdown: str, source: str) -> list[ChecklistItem]:
     items: list[ChecklistItem] = []
     section = "Top"
@@ -351,11 +432,13 @@ def audit_issue(issue_ref: str, repo: str | None) -> AuditResult:
     plan_comment = find_canonical_plan_comment(issue)
     issue_items = parse_checklist(str(issue.get("body", "")), source="issue")
     plan_items = parse_checklist(str(plan_comment.get("body", "")) if plan_comment else "", source="plan")
+    comment_problems = find_non_deterministic_comment_problems(issue, plan_comment)
     return AuditResult(
         issue=issue,
         plan_comment=plan_comment,
         issue_items=issue_items,
         plan_items=plan_items,
+        comment_problems=comment_problems,
     )
 
 
@@ -534,6 +617,7 @@ def print_audit(audit: AuditResult, *, include_canonical_thread_blockers: bool =
         f"{len(audit.open_plan_items)} open, "
         f"{len(audit.blocking_plan_items)} blocking"
     )
+    print(f"Non-deterministic execution comments: {len(audit.comment_problems)}")
 
     if audit.open_issue_items:
         print("\nOpen issue checklist items:")
@@ -544,6 +628,10 @@ def print_audit(audit: AuditResult, *, include_canonical_thread_blockers: bool =
     if audit.non_blocking_plan_items:
         print("\nOpen non-blocking plan checklist items:")
         print(format_items(audit.non_blocking_plan_items))
+    if audit.comment_problems:
+        print("\nNon-deterministic execution comments:")
+        for problem in audit.comment_problems:
+            print(f"- {problem.url} [{', '.join(problem.markers)}] {problem.summary}")
 
     if include_canonical_thread_blockers and audit.canonical_thread_blockers:
         print("\nCanonical thread blockers:")
