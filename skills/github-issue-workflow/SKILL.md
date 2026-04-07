@@ -147,16 +147,21 @@ For meaningful execution work, keep these aligned:
 
 1. Issue body
 2. One canonical implementation-plan comment
-3. Pull request body once implementation starts or finishes
-4. Optional GitHub Project item when the repo uses projects
+3. Zero or one deterministic execution-status comment when new execution facts need to land before PR closeout
+4. Pull request body once implementation starts or finishes
+5. Optional GitHub Project item when the repo uses projects
 
 Rules:
 
 - the issue body is the stable request contract
 - the plan comment is the rich design, checklist, verification trail, and tweaks log
+- the optional execution-status comment is a factual progress artifact, not a chat transcript
 - the PR body is the closeout contract; derive it from the issue and plan comment instead of inventing a second scope
-- keep both the issue body and the plan comment deterministic: record the chosen scope, facts, contracts, and verification only
-- do not include sections such as `Options considered`, `Alternatives`, `Pros / cons`, `Tradeoff matrix`, or `Recommendation` in issue content
+- keep the issue body, canonical plan comment, and any execution-status comment deterministic: record the chosen scope, facts, contracts, and verification only
+- do not include sections such as `Options considered`, `Alternatives`, `Pros / cons`, `Tradeoff matrix`, or `Recommendation` in issue content or issue comments
+- do not copy conversational planning such as `Next runs`, option menus, or recommended-vs-alternative paths from the user chat into GitHub
+- if the issue body and canonical plan already capture the current truth, do not add a separate status comment just to restate them
+- when a status comment is necessary, keep at most one live status comment and update that thread instead of starting a second planning thread
 - avoid multiple active plan comments
 - if the repo uses a GitHub Project, keep status there instead of inventing another tracker
 - keep issue and PR language aligned with the repo working language declared in root `AGENTS.md`, or English when no language is declared
@@ -303,6 +308,21 @@ Rules:
 When the repo uses the bundled defaults, read `references/issue-pr-closeout.md` before opening the PR and use `scripts/issue_pr_closeout.py` to audit the issue state and create or update the PR body locally.
 When the user asks to merge, run the merge audit through `scripts/issue_pr_closeout.py merge-pr` before calling `gh pr merge`.
 
+## Execution-status comment
+
+Use `assets/execution-status-comment.md` as the default structure when the repo needs a separate issue comment for execution updates between the canonical plan comment and PR closeout.
+
+Rules:
+
+- post one only when there is a new execution fact that is not already captured in the issue body, canonical plan comment, or PR body
+- keep it factual and compact: current state, selected next slice, blockers, validation since the last update, and any concrete human follow-up needed
+- record the selected next slice only; do not enumerate alternatives or compare approaches
+- do not include `Run options`, `Option A/B/C`, recommendation prose, or any other conversational decision menu
+- if the real work is still deciding between approaches, keep that discussion in the user conversation or a `type:research` issue instead of an execution issue comment
+- edit the existing live status comment when possible instead of creating a fresh comment for each small update
+- if implementation begins or scope changes materially, update the canonical plan comment first; the status comment is not a replacement plan
+- if closeout has started, move durable state into the PR body and linked checklist reconciliation instead of continuing a status-comment thread
+
 ## Labels
 
 Use repo-native labels when present.
@@ -328,6 +348,7 @@ Successful use of this skill should leave:
 - the right issue class created or updated
 - a clear stable issue body
 - one canonical implementation-plan comment when the work is meaningful
+- zero or one deterministic execution-status comment when live execution facts need a dedicated issue update
 - a PR that links back to the issue and closes it directly when the issue is fully implemented
 - no unchecked implementation checklist items left behind in the issue body or canonical plan comment at PR open time
 - no unchecked PR checklist items or related closing-issue checklist items left behind at merge time
@@ -338,6 +359,7 @@ Successful use of this skill should leave:
 
 - `assets/issue-templates/*.yml` - portable issue form defaults for repos that have no issue templates yet
 - `assets/canonical-plan-comment.md` - default implementation-plan comment structure
+- `assets/execution-status-comment.md` - default deterministic execution-status comment structure
 - `assets/pull-request-body.md` - default PR closeout body structure derived from the linked issue
 - `references/label-conventions.md` - portable label policy and meanings
 - `references/label-bootstrap.md` - how to create or sync the required label set in a repo that does not already have it
