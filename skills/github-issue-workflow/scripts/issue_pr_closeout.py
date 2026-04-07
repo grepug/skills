@@ -17,6 +17,8 @@ SKILL_DIR = SCRIPT_DIR.parent
 PR_TEMPLATE_PATH = SKILL_DIR / "assets" / "pull-request-body.md"
 CANONICAL_PLAN_MARKER = "**Use this comment for:**"
 CHECKLIST_PATTERN = re.compile(r"^[*-]\s*\[( |x|X)\]\s*(.*)$")
+SUPERSEDED_PATTERN = re.compile(r"\b(?:duplicate of|superseded by)\s+#\d+\b", re.IGNORECASE)
+DRAFT_PR_PATTERN = re.compile(r"\bbelongs to draft (?:pr|pull request)\b", re.IGNORECASE)
 
 
 @dataclass
@@ -53,6 +55,19 @@ class AuditResult:
     @property
     def blockers(self) -> list[str]:
         problems: list[str] = []
+        if issue_is_closed(self.issue):
+            problems.append("Issue is already closed and should not be used as the live closeout thread.")
+        if issue_has_duplicate_label(self.issue):
+            problems.append("Issue is labeled duplicate and should not be used as the canonical closeout thread.")
+        supersede_target = issue_superseded_target(self.issue)
+        if supersede_target is not None:
+            problems.append(
+                f"Issue is marked as duplicate/superseded by #{supersede_target} and should not be used as the canonical closeout thread."
+            )
+        if issue_belongs_to_draft_pr(self.issue):
+            problems.append(
+                "Issue is marked as a draft-PR concern and should stay in PR review until merged-state evidence justifies a standalone execution issue."
+            )
         if self.plan_comment is None:
             problems.append("Canonical plan comment not found.")
         if self.open_issue_items:
@@ -78,6 +93,8 @@ class PullRequestAudit:
     @property
     def blockers(self) -> list[str]:
         problems: list[str] = []
+        if bool(self.pr.get("isDraft")):
+            problems.append(f"PR #{self.pr['number']} is still a draft.")
         if self.open_pr_items:
             problems.append(f"PR body still has {len(self.open_pr_items)} unchecked checklist item(s).")
         if not pr_closes_issue(self.pr, self.linked_issue.issue["number"]):
@@ -183,7 +200,7 @@ def fetch_issue(issue_ref: str, repo: str | None) -> dict[str, Any]:
             "view",
             issue_ref,
             "--json",
-            "number,title,body,url,milestone,comments",
+            "number,title,body,url,state,stateReason,labels,milestone,comments",
         )
     )
     if result.returncode != 0:
@@ -225,6 +242,53 @@ def normalize_issue_refs(raw_refs: Any) -> list[dict[str, Any]]:
         if isinstance(nodes, list):
             return [issue for issue in nodes if isinstance(issue, dict)]
     return []
+
+
+def normalize_labels(raw_labels: Any) -> list[str]:
+    if isinstance(raw_labels, list):
+        labels: list[str] = []
+        for label in raw_labels:
+            if isinstance(label, str):
+                labels.append(label)
+            elif isinstance(label, dict):
+                name = label.get("name")
+                if isinstance(name, str):
+                    labels.append(name)
+        return labels
+    if isinstance(raw_labels, dict):
+        nodes = raw_labels.get("nodes")
+        if isinstance(nodes, list):
+            return normalize_labels(nodes)
+    return []
+
+
+def issue_is_closed(issue: dict[str, Any]) -> bool:
+    state = str(issue.get("state", "")).upper()
+    return state == "CLOSED"
+
+
+def issue_has_duplicate_label(issue: dict[str, Any]) -> bool:
+    labels = {label.lower() for label in normalize_labels(issue.get("labels"))}
+    return "duplicate" in labels
+
+
+def issue_superseded_target(issue: dict[str, Any]) -> int | None:
+    comments = normalize_comments(issue.get("comments"))
+    for comment in reversed(comments):
+        body = str(comment.get("body", ""))
+        match = SUPERSEDED_PATTERN.search(body)
+        if match is None:
+            continue
+        target_match = re.search(r"#(\d+)", match.group(0))
+        if target_match is not None:
+            return int(target_match.group(1))
+    return None
+
+
+def issue_belongs_to_draft_pr(issue: dict[str, Any]) -> bool:
+    texts = [str(issue.get("body", ""))]
+    texts.extend(str(comment.get("body", "")) for comment in normalize_comments(issue.get("comments")))
+    return any(DRAFT_PR_PATTERN.search(text) for text in texts)
 
 
 def find_canonical_plan_comment(issue: dict[str, Any]) -> dict[str, Any] | None:
@@ -444,6 +508,10 @@ def find_existing_pr(branch: str, repo: str | None) -> dict[str, Any] | None:
 
 def print_audit(audit: AuditResult) -> None:
     print(f"Issue #{audit.issue['number']}: {audit.issue['title']}")
+    state = str(audit.issue.get("state", "")).lower() or "unknown"
+    labels = ", ".join(sorted(normalize_labels(audit.issue.get("labels")))) or "none"
+    print(f"Issue state: {state}")
+    print(f"Issue labels: {labels}")
     if audit.plan_comment is None:
         print("Canonical plan comment: missing")
     else:

@@ -83,10 +83,12 @@ Use two layers:
 1. `Issue body`
    - Keep it short and readable
    - Add a required `Reviewer attention` summary near the top
+   - Add compact `Current evidence / code anchors` when repo-local code, config, logs, commands, or provider state are part of the problem
    - Summarize only the hotspots, not all backing detail
    - Record the selected scope only; do not add `Options considered`, alternatives, pros / cons, or recommendation sections
 2. `Canonical plan comment`
    - Record the researched implementation detail for each hotspot
+   - Record the concrete anchors that prove the current state so the plan is grounded in real code or system evidence
    - Treat this as the authoritative implementation plan
    - Record the chosen design and supporting facts, not a comparison between options
 
@@ -95,6 +97,7 @@ Use two layers:
 Before treating the issue as ready, ask:
 
 - Could a reviewer see the risky surfaces within a few seconds from the issue body?
+- Could a reviewer or agent point to the current code, config, provider state, or failing command without rediscovering it from scratch?
 - Could an implementation agent execute without first rediscovering dependency, schema, or architecture facts?
 - Does the plan comment describe the current state as well as the target state?
 - Does it explain why the chosen dependency or design is being used?

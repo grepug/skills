@@ -34,9 +34,11 @@ Before creating or reshaping an issue workflow, inspect the repo in this order:
 2. repo docs for label policy, project usage, and planning rules
 3. existing issue labels and naming conventions if the user or tooling exposes them
 4. root `AGENTS.md` for the repo's working language, plus any equivalent repo instructions for repo-specific issue or PR workflow rules
-5. the currently affected code, manifests, schemas, migrations, and module boundaries so the issue describes the real starting point instead of guesses
+5. 2-5 recent closed execution issues plus their related PRs so you learn the repo's real issue shape, closeout style, validation habits, and failure modes instead of copying stale docs
+6. the currently affected code, manifests, schemas, migrations, and module boundaries so the issue describes the real starting point instead of guesses
 
 If the repo already has templates, labels, or project rules, follow them.
+If the repo's templates are older or thinner than the workflow contract in this skill, still use the repo-native template, then immediately backfill any missing required sections in the final issue body or canonical plan comment instead of silently dropping them.
 
 If the repo has no established workflow, use the portable defaults bundled with this skill:
 
@@ -45,7 +47,7 @@ If the repo has no established workflow, use the portable defaults bundled with 
 - `assets/issue-templates/bug.yml`
 - `assets/issue-templates/infra.yml`
 - `assets/issue-templates/research.yml`
-- `assets/issue-templates/config.yml`
+- `assets/issue-templates/config.yml` for GitHub issue-template configuration, not as an execution-issue class
 - `references/label-conventions.md`
 - `references/label-bootstrap.md`
 - `references/external-dependency-research.md`
@@ -103,6 +105,22 @@ Rules:
 - in the bundled default templates, execution issues start with `priority:p2`; if the issue needs a different priority, replace that label immediately after creation
 - keep one canonical implementation-plan comment for meaningful work
 - treat `type:research` as a bounded investigation issue, not as implementation authorization for follow-on code or config changes
+
+## Execution triage before opening or rewriting an issue
+
+Before creating a new execution issue, classify the work source first:
+
+- If the concern only exists on an unmerged or draft PR, keep it on that PR as review feedback or a PR task instead of opening a repo bug immediately.
+- If a matching execution issue already exists, update or reuse it instead of starting a second canonical thread.
+- If the new work only unblocks external setup or live verification for already-merged code, open a narrow follow-up execution issue that links the original issue and PR explicitly.
+- If the work is still mostly about choosing between approaches, keep it as `type:research` or a seed instead of pretending implementation is authorized.
+
+Rules:
+
+- check for open issues, very recent closed issues, and active PRs with the same scope before creating a new execution issue
+- do not create a canonical plan comment on a duplicate issue
+- when a duplicate or superseded issue already has draft planning content, move the durable plan to the surviving issue and close the extra thread with a backlink
+- treat draft-PR-only findings as execution issues only after merged-state evidence shows the problem still exists independently of the draft branch
 
 ## Seed promotion
 
@@ -179,6 +197,7 @@ Rules:
 Execution issues should capture:
 
 - reviewer-attention summary near the top of the body
+- current evidence or code anchors when repo-local code, config, logs, or commands are part of the problem
 - problem or request
 - why it matters
 - desired outcome
@@ -201,6 +220,14 @@ The reviewer-attention summary should stay concise and highlight only the change
 - config, secrets, or external setup
 
 Use `None` only when there is genuinely no material review hotspot. Do not hide important review surfaces inside long prose elsewhere in the body.
+
+Current evidence or code anchors should stay compact and concrete. Prefer 1-3 anchors such as:
+
+- a specific file, function, schema, or command that demonstrates current behavior
+- a failing test name, log line, or reproduction command
+- a short code excerpt or pseudo-shape only when it removes ambiguity faster than prose
+
+Do not paste large code blocks into the issue body. The goal is to anchor the issue in the real current state, not to duplicate implementation.
 
 When external setup dependencies exist, the issue must also capture:
 
@@ -242,6 +269,7 @@ Do not treat a `feature`, `bug`, or `infra` issue as implementation-ready until 
 
 When relevant, the canonical plan comment should make the following explicit:
 
+- the concrete current evidence or code anchors that justify the issue contract
 - current and planned dependency changes, including why each dependency is needed and why existing dependencies are insufficient
 - current and planned data model or schema changes, including migrations, backfills, compatibility concerns, and rollback or recovery notes when applicable
 - current and planned architecture or module-boundary changes, including the contracts being introduced or reshaped
@@ -262,6 +290,7 @@ Rules:
 
 - keep it design-first and checklist-second
 - treat it as the completed implementation plan, not as a scratchpad for later discovery
+- keep exactly one live canonical plan comment on the surviving execution issue
 - map checklist items back to design sections
 - record the selected implementation shape only; do not add alternative-analysis sections such as `Options considered`, `Alternatives`, or `Recommendation`
 - include explicit verification items
