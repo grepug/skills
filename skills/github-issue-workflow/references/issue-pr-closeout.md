@@ -66,6 +66,7 @@ python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py merge-pr \
 - If the supplied issue is already closed, labeled `duplicate`, or explicitly marked as duplicate/superseded by another issue in its comments, the helper exits non-zero instead of treating it as the canonical closeout thread.
 - If the canonical plan comment is missing, the helper exits non-zero.
 - If unchecked implementation checklist items remain in the issue body or plan comment, the helper exits non-zero.
+- If issue comments outside the canonical plan comment contain `Execution is not started yet`, `Next runs`, `Run options`, `Option A/B/C`, or similar planning markers, the helper exits non-zero.
 - If unchecked checklist items remain in the PR body, the merge audit exits non-zero.
 - If the PR is still a draft, the merge audit exits non-zero.
 - If related issues that the PR closes still have unchecked issue or blocking plan items, the merge audit exits non-zero.

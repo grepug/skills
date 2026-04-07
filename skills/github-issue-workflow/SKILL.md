@@ -192,7 +192,7 @@ Rules:
 - do not leave PR checklists drifting from the issue; the PR should summarize closeout, not replace the source-of-truth issue
 - treat unchecked implementation items in the issue body or canonical plan comment as blockers for PR readiness
 - for repos using the bundled defaults, use `scripts/issue_pr_closeout.py` as the local closeout gate before opening or updating the PR
-- if the script reports unresolved checklist items or a missing canonical plan comment, fix the issue state first instead of bypassing the gate
+- if the script reports unresolved checklist items, a missing canonical plan comment, or a non-deterministic execution-status comment, fix the issue state first instead of bypassing the gate
 - for merge requests, use `scripts/issue_pr_closeout.py merge-pr` so the PR body, linked issue, canonical plan comment, and related closing issues are audited immediately before merge
 - if the merge audit reports unresolved items, the work is not done yet; continue execution on those items instead of merging
 - when the issue is fully implemented, automatically create the PR instead of waiting for a separate prompt
