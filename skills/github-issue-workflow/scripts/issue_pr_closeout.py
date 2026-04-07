@@ -23,10 +23,22 @@ DRAFT_PR_PATTERN = re.compile(
     re.IGNORECASE,
 )
 NON_DETERMINISTIC_COMMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
-    ("execution-is-not-started marker", re.compile(r"^\s*execution is not started yet\.\s*$", re.IGNORECASE | re.MULTILINE)),
-    ("next-runs block", re.compile(r"^\s*next runs:\s*$", re.IGNORECASE | re.MULTILINE)),
-    ("run-options block", re.compile(r"^\s*run options:\s*$", re.IGNORECASE | re.MULTILINE)),
-    ("option bullet", re.compile(r"^\s*[-*]\s*option [a-z0-9]+\b", re.IGNORECASE | re.MULTILINE)),
+    (
+        "execution-is-not-started marker",
+        re.compile(r"^\s*(?:#+\s*)?execution is not started yet\.?\s*$", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "next-runs block",
+        re.compile(r"^\s*(?:#+\s*)?next runs:?\s*$", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "run-options block",
+        re.compile(r"^\s*(?:#+\s*)?run options:?\s*$", re.IGNORECASE | re.MULTILINE),
+    ),
+    (
+        "option line",
+        re.compile(r"^\s*(?:#+\s*|[-*]\s*)?option [a-z0-9]+\b(?:\s*[:.)-])?", re.IGNORECASE | re.MULTILINE),
+    ),
     (
         "options-considered section",
         re.compile(r"^\s*(?:#+\s*)?options considered\b", re.IGNORECASE | re.MULTILINE),
