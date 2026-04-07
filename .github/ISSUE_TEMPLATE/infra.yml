@@ -30,6 +30,18 @@ body:
     validations:
       required: true
   - type: textarea
+    id: current_evidence
+    attributes:
+      label: Current evidence / code anchors
+      description: Record 1-3 concrete anchors that show the current infra or workflow state, such as file paths, commands, logs, screenshots, or a short config/code excerpt. Write `None` only when there is genuinely no meaningful current anchor.
+      placeholder: |
+        Example:
+        - `.github/ISSUE_TEMPLATE/feature.yml`: repo-native template omits reviewer-attention and code-anchor fields
+        - Recent merged PR bodies already include closeout checklists, so the issue workflow should match that reality
+        - `skills/github-issue-workflow/scripts/issue_pr_closeout.py`: closeout helper only governs PR time, not issue creation-time triage
+    validations:
+      required: true
+  - type: textarea
     id: why
     attributes:
       label: Why this matters

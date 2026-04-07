@@ -40,7 +40,12 @@ body:
     id: repro
     attributes:
       label: Reproduction or evidence
-      placeholder: Include repro steps, logs, screenshots, stack traces, or failing commands.
+      description: Include repro steps plus the concrete anchors that prove the bug today, such as file paths, function names, logs, stack traces, failing commands, or a short code excerpt when that is the clearest evidence.
+      placeholder: |
+        Example:
+        1. Reproduce the bug with the exact command or UI flow.
+        2. Point to the current code path that explains it.
+        3. Include the minimal log, failing assertion, or short code excerpt that removes ambiguity.
     validations:
       required: true
   - type: textarea
@@ -124,3 +129,10 @@ body:
         python3 scripts/validate_skills.py
     validations:
       required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Links / references
+      placeholder: Link related issues, PRs, logs, screenshots, docs, or previous decisions.
+    validations:
+      required: false

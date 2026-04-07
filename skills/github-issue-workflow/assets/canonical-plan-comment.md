@@ -14,6 +14,10 @@
 
 - <material review hotspot and why it needs attention>
 
+## Current Evidence / Anchors
+
+- <specific file, function, command, issue, PR, log line, or short excerpt that shows the current state>
+
 ## Change Surface
 
 ### Dependency changes

@@ -10,14 +10,16 @@ When the user asks to merge, re-audit the live PR and all issues that the PR wil
 
 ## Closeout rules
 
-1. Re-read the issue body after implementation, not before it.
-2. Re-read the canonical plan comment and reconcile every implementation checkbox against shipped code.
-3. Treat unresolved implementation checkboxes as blockers for PR readiness.
-4. Generate the PR body from the linked issue instead of writing it from memory.
-5. Open the PR automatically once the issue is fully implemented and the closeout audit passes.
-6. Before merge, re-read the current PR body and treat unchecked PR checklist items as merge blockers.
-7. Before merge, re-audit every additional issue the PR will close and treat their unresolved checklist state as merge blockers.
-8. If the merge audit fails, report the blockers and continue the work instead of merging.
+1. Keep exactly one canonical execution issue for the work. If a duplicate or superseded issue exists, close it with a backlink and keep the plan and PR closeout on the surviving issue.
+2. If the original concern only existed on an unmerged draft PR, keep it in PR review until merged-state evidence proves it should become a standalone execution issue.
+3. Re-read the issue body after implementation, not before it.
+4. Re-read the canonical plan comment and reconcile every implementation checkbox against shipped code.
+5. Treat unresolved implementation checkboxes as blockers for PR readiness.
+6. Generate the PR body from the linked issue instead of writing it from memory.
+7. Open the PR automatically once the issue is fully implemented and the closeout audit passes.
+8. Before merge, re-read the current PR body and treat unchecked PR checklist items as merge blockers.
+9. Before merge, re-audit every additional issue the PR will close and treat their unresolved checklist state as merge blockers.
+10. If the merge audit fails, report the blockers and continue the work instead of merging.
 
 ## Local workflow
 
@@ -59,9 +61,11 @@ python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py merge-pr \
 
 ## Expected behavior
 
+- If the supplied issue is already closed, labeled `duplicate`, or explicitly marked as duplicate/superseded by another issue in its comments, the helper exits non-zero instead of treating it as the canonical closeout thread.
 - If the canonical plan comment is missing, the helper exits non-zero.
 - If unchecked implementation checklist items remain in the issue body or plan comment, the helper exits non-zero.
 - If unchecked checklist items remain in the PR body, the merge audit exits non-zero.
+- If the PR is still a draft, the merge audit exits non-zero.
 - If related issues that the PR closes still have unchecked issue or blocking plan items, the merge audit exits non-zero.
 - Open items under `External Setup Dependencies` remain visible in the audit output but do not block PR creation by themselves.
 - If the current branch already has a PR, the helper updates that PR instead of creating a duplicate.

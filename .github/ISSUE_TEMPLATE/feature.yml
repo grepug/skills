@@ -30,6 +30,18 @@ body:
     validations:
       required: true
   - type: textarea
+    id: current_evidence
+    attributes:
+      label: Current evidence / code anchors
+      description: Record 1-3 concrete anchors that show the current state, such as file paths, function names, logs, failing commands, screenshots, or a short code excerpt. Write `None` only when the work has no meaningful repo-local or provider-local starting point yet.
+      placeholder: |
+        Example:
+        - `skills/github-issue-workflow/SKILL.md`: current discovery order does not require sampling recent closed issues and PRs
+        - `skills/github-issue-workflow/assets/issue-templates/feature.yml`: the issue form does not ask for concrete code anchors today
+        - Recent closed issues show plan comments were added to duplicate threads before the duplicate was closed
+    validations:
+      required: true
+  - type: textarea
     id: why
     attributes:
       label: Why this matters

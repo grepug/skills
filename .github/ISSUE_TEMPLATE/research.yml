@@ -30,6 +30,18 @@ body:
     validations:
       required: true
   - type: textarea
+    id: current_evidence
+    attributes:
+      label: Current evidence / starting anchors
+      description: Record the specific files, commands, issue threads, PRs, logs, docs, or other anchors that make this investigation concrete. Write `None` only when there is genuinely no current anchor yet.
+      placeholder: |
+        Example:
+        - A recent closed issue was closed because the concern belonged on an unmerged draft PR, which suggests the repo needs a clearer PR-vs-issue triage rule
+        - A recent duplicate issue already had plan-comment work, which suggests the repo needs stronger canonical-issue reuse
+        - `skills/github-issue-workflow/SKILL.md`: current guidance does not explicitly require checking recent closed issues and PRs first
+    validations:
+      required: true
+  - type: textarea
     id: why
     attributes:
       label: Why this matters
@@ -114,3 +126,10 @@ body:
       placeholder: Describe the evidence expected, such as a decision comment, risk write-up, or doc update.
     validations:
       required: true
+  - type: textarea
+    id: references
+    attributes:
+      label: Links / references
+      placeholder: Link related issues, PRs, docs, examples, or previous decisions.
+    validations:
+      required: false
