@@ -18,7 +18,10 @@ PR_TEMPLATE_PATH = SKILL_DIR / "assets" / "pull-request-body.md"
 CANONICAL_PLAN_MARKER = "**Use this comment for:**"
 CHECKLIST_PATTERN = re.compile(r"^[*-]\s*\[( |x|X)\]\s*(.*)$")
 SUPERSEDED_PATTERN = re.compile(r"\b(?:duplicate of|superseded by)\s+#\d+\b", re.IGNORECASE)
-DRAFT_PR_PATTERN = re.compile(r"\bbelongs to draft (?:pr|pull request)\b", re.IGNORECASE)
+DRAFT_PR_PATTERN = re.compile(
+    r"\b(?:belongs to draft (?:pr|pull request)|draft[- ]pr[- ]only(?: findings?)?)\b",
+    re.IGNORECASE,
+)
 
 
 @dataclass
@@ -35,6 +38,24 @@ class AuditResult:
     plan_comment: dict[str, Any] | None
     issue_items: list[ChecklistItem]
     plan_items: list[ChecklistItem]
+
+    @property
+    def canonical_thread_blockers(self) -> list[str]:
+        problems: list[str] = []
+        if issue_is_closed(self.issue):
+            problems.append("Issue is already closed and should not be used as the live closeout thread.")
+        if issue_has_duplicate_label(self.issue):
+            problems.append("Issue is labeled duplicate and should not be used as the canonical closeout thread.")
+        supersede_target = issue_superseded_target(self.issue)
+        if supersede_target is not None:
+            problems.append(
+                f"Issue is marked as duplicate/superseded by #{supersede_target} and should not be used as the canonical closeout thread."
+            )
+        if issue_belongs_to_draft_pr(self.issue):
+            problems.append(
+                "Issue is marked as a draft-PR concern and should stay in PR review until merged-state evidence justifies a standalone execution issue."
+            )
+        return problems
 
     @property
     def open_issue_items(self) -> list[ChecklistItem]:
@@ -55,19 +76,6 @@ class AuditResult:
     @property
     def blockers(self) -> list[str]:
         problems: list[str] = []
-        if issue_is_closed(self.issue):
-            problems.append("Issue is already closed and should not be used as the live closeout thread.")
-        if issue_has_duplicate_label(self.issue):
-            problems.append("Issue is labeled duplicate and should not be used as the canonical closeout thread.")
-        supersede_target = issue_superseded_target(self.issue)
-        if supersede_target is not None:
-            problems.append(
-                f"Issue is marked as duplicate/superseded by #{supersede_target} and should not be used as the canonical closeout thread."
-            )
-        if issue_belongs_to_draft_pr(self.issue):
-            problems.append(
-                "Issue is marked as a draft-PR concern and should stay in PR review until merged-state evidence justifies a standalone execution issue."
-            )
         if self.plan_comment is None:
             problems.append("Canonical plan comment not found.")
         if self.open_issue_items:
@@ -101,8 +109,11 @@ class PullRequestAudit:
             problems.append(
                 f"PR #{self.pr['number']} does not close linked issue #{self.linked_issue.issue['number']}."
             )
-        if self.linked_issue.blockers:
-            problems.extend(f"Linked issue #{self.linked_issue.issue['number']}: {blocker}" for blocker in self.linked_issue.blockers)
+        linked_issue_blockers = self.linked_issue.canonical_thread_blockers + self.linked_issue.blockers
+        if linked_issue_blockers:
+            problems.extend(
+                f"Linked issue #{self.linked_issue.issue['number']}: {blocker}" for blocker in linked_issue_blockers
+            )
         for related_issue in self.related_issues:
             if related_issue.blockers:
                 problems.extend(
@@ -506,7 +517,7 @@ def find_existing_pr(branch: str, repo: str | None) -> dict[str, Any] | None:
     return json.loads(result.stdout)
 
 
-def print_audit(audit: AuditResult) -> None:
+def print_audit(audit: AuditResult, *, include_canonical_thread_blockers: bool = True) -> None:
     print(f"Issue #{audit.issue['number']}: {audit.issue['title']}")
     state = str(audit.issue.get("state", "")).lower() or "unknown"
     labels = ", ".join(sorted(normalize_labels(audit.issue.get("labels")))) or "none"
@@ -534,6 +545,11 @@ def print_audit(audit: AuditResult) -> None:
         print("\nOpen non-blocking plan checklist items:")
         print(format_items(audit.non_blocking_plan_items))
 
+    if include_canonical_thread_blockers and audit.canonical_thread_blockers:
+        print("\nCanonical thread blockers:")
+        for blocker in audit.canonical_thread_blockers:
+            print(f"- {blocker}")
+
     if audit.blockers:
         print("\nCloseout blockers:")
         for blocker in audit.blockers:
@@ -556,7 +572,7 @@ def print_merge_audit(audit: PullRequestAudit) -> None:
 
     for related_issue in audit.related_issues:
         print(f"\nRelated issue audit: #{related_issue.issue['number']} {related_issue.issue['title']}")
-        print_audit(related_issue)
+        print_audit(related_issue, include_canonical_thread_blockers=False)
 
     if audit.blockers:
         print("\nMerge blockers:")
@@ -578,7 +594,8 @@ def open_or_update_pr(
     draft: bool,
     dry_run: bool,
 ) -> None:
-    if audit.blockers:
+    primary_blockers = audit.canonical_thread_blockers + audit.blockers
+    if primary_blockers:
         print_audit(audit)
         raise SystemExit(1)
 
