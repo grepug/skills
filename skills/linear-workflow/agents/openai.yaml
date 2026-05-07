@@ -1,0 +1,4 @@
+interface:
+  display_name: "Linear Workflow"
+  short_description: "Shape Linear product contracts and link engineering work"
+  default_prompt: "Use $linear-workflow to create or update Linear product-contract issues, apply Linear metadata, discuss scope decisions, and link GitHub engineering work when needed."
