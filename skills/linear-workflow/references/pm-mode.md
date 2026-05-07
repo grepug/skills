@@ -17,7 +17,7 @@ Do not assume the source is perfectly current. Treat it as evidence to distill i
 
 ## Issue Shape
 
-Write the Linear issue in PM language and in the target repo's designated Linear language. If the repo has no Linear-specific language rule, use English.
+Write the Linear issue in PM language and in the target repo's Linear language. Use this hierarchy: explicit user instruction, repo guidance, existing issue body language when updating an issue and no Linear-specific language is defined, then English for new issues with no guidance. A designated Linear language from the user or repo is authoritative when updating an existing issue; if the body drifted into another language, correct future body edits and comments back to that language. Use multilingual Linear content only when repo guidance or the user's explicit instruction designates multilingual content.
 
 - Problem: what user, product, workflow, or business problem is being solved.
 - Desired outcome: what should be true when this ships.
@@ -29,13 +29,84 @@ Write the Linear issue in PM language and in the target repo's designated Linear
 - Implementation links: GitHub issue or PR URLs when they exist.
 - PRD sync: whether durable docs need to be updated after the decision settles.
 
-Avoid developer-only language such as file paths, function names, schema fields, test commands, or refactor steps unless they are necessary for a PM to understand the scope boundary.
+The body should be detailed enough that a developer can implement without replaying chat or comment history. Include the user, scenario, product promise, expected behavior, important edge cases, and why the requirement matters. Avoid developer-only language such as file paths, function names, schema fields, test commands, or refactor steps unless they are necessary for a PM to understand the scope boundary.
+
+## Detailed Body Guidance
+
+Use clear sections rather than a dense paragraph. Prefer this shape:
+
+- Problem: name the affected user or workflow and the product pain.
+- Context: explain the source material and any existing product direction that must stay true.
+- Desired outcome: describe the shipped user-visible state in product terms.
+- Acceptance criteria: use observable bullets that a developer, reviewer, or PM can verify.
+- Constraints and non-goals: list what must not change, what is intentionally out of scope, and any sequencing limits.
+- Requirements needing discussion: list unresolved product requirements, or write `None`.
+- Decision points: name the decisions needed to close each unresolved requirement.
+- Implementation links: include GitHub issue, PR, branch, or design link when available.
+- PRD sync: say whether durable docs must be updated, are already updated, or do not need sync.
+
+Good acceptance criteria describe product behavior, not code tasks.
+
+- Good: "Learners can retry the guide question without losing the story draft."
+- Weak: "Add retry button to `GuideView`."
+
+Good constraints help developers avoid wrong implementation paths.
+
+- Good: "Do not turn this into sentence-by-sentence translation; the guide must keep the user's real story as the source."
+- Weak: "Keep current flow."
 
 Always include a `Requirements needing discussion` section when source material is incomplete, branch-first, implementation-first, contradictory, or still under review. Use short bullets phrased as product requirements, not engineering tasks. Use `None` only when the Linear issue is already a complete product contract with no unresolved product requirement, acceptance, scope, or sequencing questions.
 
 Keep the issue body focused on the current contract. If discussion comments remove or change scope, update the body to the latest accepted wording and preserve the old reasoning in comments instead of leaving strikethrough text in the body.
 
 Keep source links, issue identifiers, branch names, PR titles, and quoted product terms in their original form when translating the surrounding issue body.
+
+## Example Body
+
+```md
+## Problem
+
+Learners need the Story Guide to turn a real personal story into practice-ready scenes without making the experience feel like isolated translation drills.
+
+## Context
+
+The source direction is that Tell practice should start from the learner's own story. Existing chat discussion decided that the guide may ask follow-up questions, but it should not invent unrelated scenes or replace the user's phrasing with generic textbook prompts.
+
+## Desired outcome
+
+A learner can describe a real story in their own words, answer focused follow-up questions, and receive a structured story snapshot with scenes that are ready for practice.
+
+## Acceptance criteria
+
+- The guide keeps the learner's original story topic visible through the flow.
+- Follow-up questions ask for missing story details, not grammar drills.
+- The final story snapshot includes a title, concise story summary, and at least one practice-ready scene.
+- The scene content stays traceable to what the learner provided or confirmed.
+- If there is not enough detail to create a scene, the guide asks another focused question instead of fabricating one.
+
+## Constraints and non-goals
+
+- Do not make this a general translation exercise.
+- Do not add unrelated scene suggestions that the learner did not provide or accept.
+- Do not require PRD sync until the PM accepts the final guide behavior.
+
+## Requirements needing discussion
+
+- Decide whether the first release must support multiple scenes or only one scene per story.
+
+## Decision points
+
+- PM decision needed: first-release scene count.
+
+## Implementation links
+
+- GitHub PR: <link when available>
+- GitHub engineering issue: <link when needed>
+
+## PRD sync
+
+Required after PM accepts the final first-release behavior.
+```
 
 ## Metadata
 
