@@ -15,10 +15,13 @@ If a matching Linear issue exists, read it and treat it as the product contract:
 - priority and project context
 - open decisions
 - PRD sync expectation
+- recent body-edit comments that explain why the current contract changed
 
 If no matching Linear issue exists for branch-first, PR-first, or code-first work, create or update the PM contract using `references/pm-mode.md` and metadata discovery before continuing implementation. When the source is ambiguous, draft the proposed Linear issue first instead of writing silently.
 
 If the Linear issue is unclear, too broad, infeasible, or inconsistent, comment in Linear using `references/discussion.md` before changing the product contract in GitHub or code.
+
+When implementing, derive engineering tasks from the current issue body. Use comments to understand why the body changed, not as a replacement for the body. If a comment contains an accepted decision that is not reflected in the body, reconcile the body and leave a body-edit comment before continuing.
 
 ## When To Create GitHub Issues
 
