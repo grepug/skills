@@ -234,6 +234,8 @@ Current evidence or code anchors should stay compact and concrete. Prefer 1-3 an
 
 Do not paste large code blocks into the issue body. The goal is to anchor the issue in the real current state, not to duplicate implementation.
 
+When the work depends on API shape, keep the issue body short and put the selected contract in the canonical plan comment. Prefer compact stubs, protocols, signatures, payload shapes, or pseudo-types for ordinary code APIs. For GraphQL schema work, include the full selected SDL snippet when the type, input, query, mutation, or subscription shape is the review contract; GraphQL SDL is the contract, not incidental implementation detail.
+
 When external setup dependencies exist, the issue must also capture:
 
 - the provider or platform name
@@ -276,8 +278,8 @@ When relevant, the canonical plan comment should make the following explicit:
 
 - the concrete current evidence or code anchors that justify the issue contract
 - current and planned dependency changes, including why each dependency is needed and why existing dependencies are insufficient
-- current and planned data model or schema changes, including migrations, backfills, compatibility concerns, and rollback or recovery notes when applicable
-- current and planned architecture or module-boundary changes, including the contracts being introduced or reshaped
+- current and planned data model or schema changes, including selected API or GraphQL type shapes, migrations, backfills, compatibility concerns, and rollback or recovery notes when applicable
+- current and planned architecture or module-boundary changes, including the stubs, protocols, signatures, payloads, or other contracts being introduced or reshaped
 - external setup dependencies and the human steps required to satisfy them
 - rollout, operational, or verification constraints
 
