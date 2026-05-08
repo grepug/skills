@@ -35,6 +35,7 @@
 
 - Current state: <current model, schema, contract, or `None`>
 - Planned change: <what changes, or `None`>
+- Contract shape: <compact API shape, full selected GraphQL SDL snippet when GraphQL schema is the review contract, or `None`>
 - Migration / compatibility: <migration, backfill, rollout, or `None`>
 - Risk / recovery: <breakage risk, rollback limits, monitoring, or `None`>
 - Review focus: <what reviewers should scrutinize>
@@ -52,7 +53,7 @@
 ### <Component or step>
 
 - Files: `path/to/file`
-- Interface or contract: `<signature or artifact shape>`
+- Interface or contract: `<stub, protocol, signature, payload shape, artifact shape, or full selected GraphQL SDL snippet when that is the review contract>`
 - Decision basis: <the concrete repo constraint or requirement that makes this component shape necessary>
 
 ## Boundary
