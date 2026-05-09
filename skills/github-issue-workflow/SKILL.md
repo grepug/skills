@@ -176,28 +176,23 @@ Before opening or updating a PR for an execution issue, do all of the following 
 
 1. Re-read the issue body, especially acceptance criteria and constraints
 2. Re-read the canonical plan comment and reconcile every implementation checklist item against the shipped code
-3. Audit scope discipline: confirm the shipped code does not add speculative abstractions, dependencies, layers, states, schemas, workflows, or adjacent fixes that are not justified by the issue body, canonical plan, acceptance criteria, or repo constraints
-4. Audit documentation and comment coverage where durable explanation is needed: public APIs, command surfaces, configuration, migrations, schemas, non-obvious invariants, operational runbooks, and user- or developer-facing docs must be updated or explicitly marked `None` with a concrete reason
-5. Finish, remove, or explicitly rewrite any stale unchecked checklist item in the issue or plan comment before claiming the work is done
-6. Generate or update the PR body from the linked issue instead of writing it from memory
-7. Open or update a PR that closes the issue directly
+3. Finish, remove, or explicitly rewrite any stale unchecked checklist item in the issue or plan comment before claiming the work is done
+4. Generate or update the PR body from the linked issue instead of writing it from memory
+5. Open or update a PR that closes the issue directly
 
 Before merging a PR for an execution issue on user request, do all of the following in this order:
 
 1. Re-read the current PR body and treat unchecked PR checklist items as merge blockers
 2. Re-audit the linked issue body and canonical plan comment against the shipped code
 3. Re-audit every additional issue that the PR will close on merge
-4. Re-audit scope discipline and required documentation/comment coverage against the final diff
-5. If any PR, issue, canonical-plan, scope-discipline, or documentation/comment coverage item is still open, report why merge is blocked and continue the work instead of merging
-6. Merge only after the merge audit passes
+4. If any PR, issue, or canonical-plan checklist item is still open, report why merge is blocked and continue the work instead of merging
+5. Merge only after the merge audit passes
 
 Rules:
 
 - do not leave issue checklist items unchecked merely because the work has moved into PR review
 - do not leave PR checklists drifting from the issue; the PR should summarize closeout, not replace the source-of-truth issue
 - treat unchecked implementation items in the issue body or canonical plan comment as blockers for PR readiness
-- treat clear overdesign as a scope mismatch, not as a style preference: block only when the implementation exceeds the selected issue/plan contract or repo constraints
-- do not require comments or docs by count; require them only when a changed surface needs durable explanation for users, operators, reviewers, or future implementers
 - for repos using the bundled defaults, use `scripts/issue_pr_closeout.py` as the local closeout gate before opening or updating the PR
 - if the script reports unresolved checklist items, a missing canonical plan comment, or a non-deterministic execution-status comment, fix the issue state first instead of bypassing the gate
 - for merge requests, use `scripts/issue_pr_closeout.py merge-pr` so the PR body, linked issue, canonical plan comment, and related closing issues are audited immediately before merge
@@ -289,8 +284,6 @@ When relevant, the canonical plan comment should make the following explicit:
 - current and planned architecture or module-boundary changes, including the stubs, protocols, signatures, payloads, or other contracts being introduced or reshaped
 - external setup dependencies and the human steps required to satisfy them
 - rollout, operational, or verification constraints
-- scope-discipline notes for any new abstraction, dependency, layer, state, schema, workflow, or adjacent fix that could look broader than the issue contract
-- documentation or comment coverage needed for changed public APIs, commands, config, migrations, schemas, non-obvious invariants, operations, or user/developer docs
 
 If those details are not yet known, the work is still in research. Do not disguise incomplete discovery as an execution-ready issue.
 
@@ -310,7 +303,6 @@ Rules:
 - map checklist items back to design sections
 - record the selected implementation shape only; do not add alternative-analysis sections such as `Options considered`, `Alternatives`, or `Recommendation`
 - include explicit verification items
-- include explicit scope-discipline and documentation/comment coverage items when those surfaces are relevant
 - keep external setup as checklist items when live verification depends on it
 - include the closeout contract so agents know they must revisit this comment before PR creation
 - append tweaks instead of starting a second live plan

@@ -72,23 +72,10 @@
 
 - <compatibility, sequencing, backfill, recovery, or `None`>
 
-## Scope Discipline
-
-- Added abstraction / dependency / layer / state / schema / workflow: <what was added, or `None`>
-- Contract evidence: <issue body, acceptance criterion, canonical plan section, or repo constraint that justifies it>
-- Adjacent work intentionally avoided: <nearby work kept out of scope, or `None`>
-
-## Documentation / Comments
-
-- Required updates: <public API docs, command help, config docs, migration notes, schema docs, operational docs, user/developer docs, inline comments for non-obvious invariants, or `None`>
-- Coverage reason: <why the updates are needed, or why none are needed>
-
 ## Closeout Contract
 
 - Re-read the issue body and acceptance criteria before opening or updating a PR.
 - Reconcile this checklist against the shipped code; do not leave implementation items unchecked because the work moved to PR review.
-- Audit scope discipline; do not ship speculative abstractions or unrelated adjacent fixes that are not justified by the issue body, this plan, or repo constraints.
-- Audit documentation and comment coverage for changed surfaces that need durable explanation; do not require comments by count.
 - Open or update a PR that closes the linked issue and carries a short closeout checklist derived from this issue.
 - Treat unchecked implementation items in the issue body or this comment as blockers for PR readiness.
 
@@ -101,8 +88,6 @@
 ### Verification
 
 - [ ] Verify: `<command or proof>`
-- [ ] Verify scope discipline: implementation stays within the selected issue/plan contract
-- [ ] Verify docs/comments: required durable explanations are updated, or `None` is justified
 
 ## Tweaks
 
