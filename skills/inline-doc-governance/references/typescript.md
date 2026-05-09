@@ -78,22 +78,21 @@ Put the doc above decorators.
 
 ```ts
 /**
- * Feature-facing APNS seam for backend callers.
+ * Queue-facing seam for backend callers.
  *
- * Callers use this service instead of talking to the HTTP/2 client directly,
- * which keeps Apple transport details behind one backend boundary.
+ * Callers enqueue work here instead of talking to the worker transport directly,
+ * which keeps retry and routing details behind one module boundary.
  */
 @Injectable()
-export class ApnsService {
+export class JobQueueService {
   /**
-   * Sends one notification request through APNS.
+   * Enqueues one job for asynchronous processing.
    *
-   * @param input Notification request for one device token, including the payload
-   * and any optional APNS delivery headers.
-   * @returns A normalized APNS result that includes the APNS ID and rejection details.
+   * @param input Job request with the queue name, payload, and optional delay.
+   * @returns A stable job handle callers can use for status checks.
    */
-  send(input: SendApnsNotificationInput): Promise<SendApnsNotificationResult> {
-    return this.client.send(input);
+  enqueue(input: EnqueueJobInput): Promise<QueuedJob> {
+    return this.client.enqueue(input);
   }
 }
 ```
@@ -104,18 +103,17 @@ Document the contract, not the implementation.
 
 ```ts
 /**
- * Maps the backend recognition result into the GraphQL response shape.
+ * Maps the worker result into the public API response shape.
  *
- * @param result Feature-layer transcription result with normalized transcript
- * and optional metadata fields.
- * @returns A plain object that matches the GraphQL contract exposed to clients.
+ * @param result Feature-layer job result with normalized status and optional output.
+ * @returns A plain object that matches the API contract exposed to callers.
  */
-export function toGraphQLRecognitionResult(result: RecognitionResult) {
+export function toJobResponse(result: JobResult) {
   return {
-    transcript: result.transcript,
-    durationMs: result.durationMs,
-    language: result.language,
-    confidence: result.confidence,
+    id: result.id,
+    status: result.status,
+    output: result.output,
+    completedAt: result.completedAt,
   };
 }
 ```
@@ -133,10 +131,10 @@ Use inline comments where the code hides a decision.
 Good:
 
 ```ts
-// Apple rejects background pushes at high priority, so fail before making
-// a request we already know the provider will reject.
-if (input.pushType === 'background' && configuredPriority !== 5) {
-  throw new ApnsTransportError('APNS background pushes must use priority 5');
+// The worker drops delayed jobs without a dedupe key, so fail before making
+// a request the queue cannot safely retry.
+if (input.delayMs > 0 && !input.dedupeKey) {
+  throw new QueueRequestError('Delayed jobs require a dedupe key');
 }
 ```
 

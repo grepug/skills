@@ -34,12 +34,12 @@ Document public, open, package-visible, cross-boundary, or otherwise important t
 ### Struct
 
 ```swift
-/// App-facing result for one recognition request.
+/// App-facing result for one cache read.
 ///
-/// Keeps the transcript stable even when provider metadata is partial.
-public struct VoiceRecognitionResult: Sendable, Equatable {
-    public let transcript: String
-    public let metadata: VoiceRecognitionMetadata
+/// Keeps the payload stable even when the backing store has partial metadata.
+public struct CacheReadResult: Sendable, Equatable {
+    public let payload: Data
+    public let metadata: CacheMetadata
 }
 ```
 
@@ -61,42 +61,41 @@ public enum AuditViewState {
 Put the doc above attributes.
 
 ```swift
-/// Coordinates one long-lived chat session in the app layer.
+/// Coordinates one long-lived editor session in the app layer.
 ///
-/// Keeps navigation, transcript loading, and composer state together so views
+/// Keeps navigation, document loading, and draft state together so views
 /// do not need to understand session bootstrap rules.
 @MainActor
-public final class ChatSessionCoordinator {
+public final class EditorSessionCoordinator {
 }
 ```
 
 ### Protocol
 
 ```swift
-/// Stable app-owned seam for voice recognition.
+/// Stable app-owned seam for cached documents.
 ///
-/// Product surfaces depend on this protocol instead of talking to GraphQL mutations directly.
-public protocol VoiceRecognitionStore: Sendable {
-    /// Runs voice recognition for one previously uploaded file.
+/// Product surfaces depend on this protocol instead of talking to persistence directly.
+public protocol DocumentCache: Sendable {
+    /// Loads one document from the local cache.
     ///
-    /// - Parameter fileID: The stored file identifier the app should send through
-    ///   the voice-recognition workflow.
-    /// - Returns: A normalized recognition result containing the transcript and
-    ///   any optional provider metadata the backend returned.
-    func recognize(fileID: UUID) async throws -> VoiceRecognitionResult
+    /// - Parameter documentID: The stored document identifier the app should read.
+    /// - Returns: A normalized cache result containing the payload and any optional metadata.
+    func load(documentID: UUID) async throws -> CacheReadResult
 }
 ```
 
 ### Extension
 
 ```swift
-/// Dependency wiring for the app-owned voice recognition store.
+/// Dependency wiring for the app-owned document cache.
 ///
 /// Centralizes the dependency key so callers read and override one stable value.
-public extension DependencyValues {
-    var voiceRecognitionStore: any VoiceRecognitionStore {
-        get { self[VoiceRecognitionStoreKey.self] }
-        set { self[VoiceRecognitionStoreKey.self] = newValue }
+public struct DocumentCacheContainer {
+    public var cache: any DocumentCache
+
+    public init(cache: any DocumentCache) {
+        self.cache = cache
     }
 }
 ```
@@ -115,13 +114,13 @@ public typealias RetryDecision = (_ attempt: Int, _ error: Error) -> Bool
 Document public and important surface APIs with Swift doc comments.
 
 ```swift
-/// Creates the app-facing result for one recognition request.
+/// Creates the app-facing result for one cache read.
 ///
 /// - Parameters:
-///   - transcript: The recognized speech text returned by the backend.
-///   - metadata: Optional provider metadata associated with the transcript.
-public init(transcript: String, metadata: VoiceRecognitionMetadata) {
-    self.transcript = transcript
+///   - payload: The cached bytes returned by the backing store.
+///   - metadata: Optional storage metadata associated with the payload.
+public init(payload: Data, metadata: CacheMetadata) {
+    self.payload = payload
     self.metadata = metadata
 }
 ```
@@ -129,9 +128,9 @@ public init(transcript: String, metadata: VoiceRecognitionMetadata) {
 ```swift
 /// Loads the bundled sample and uploads it through the real app flow.
 ///
-/// - Returns: The uploaded file handle the catalog should later pass into recognition.
-/// - Throws: A user-visible error when the fixture cannot be loaded or uploaded.
-public func uploadFixture() async throws -> UploadedFileHandle {
+/// - Returns: The loaded fixture bytes the caller can pass into tests.
+/// - Throws: A user-visible error when the fixture cannot be loaded.
+public func loadFixture() async throws -> Data {
 }
 ```
 

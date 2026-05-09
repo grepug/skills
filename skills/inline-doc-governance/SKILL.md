@@ -75,7 +75,7 @@ Strict mode:
 python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py --type-doc-policy all src clients/apple/Packages/App/Sources
 ```
 
-Autofix only when the user asked for edits or the task clearly allows direct fixes:
+Use `--fix` only for mechanical cleanup, such as moving an existing doc above decorators or attributes. It does not invent missing documentation text:
 
 ```bash
 python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py --type-doc-policy public --fix src
@@ -83,7 +83,7 @@ python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py --type-doc-po
 
 The script enforces only deterministic checks:
 
-- supported repo-owned source files have a top-of-file header
+- supported repo-owned source files have a top-of-file header that is not just a tool directive
 - selected type declarations have docs immediately above the declaration or decorators/attributes
 - generated, vendor-owned, build-output, and test files are skipped by default
 
@@ -174,7 +174,8 @@ For setup tasks, report:
 
 ## Bundled Files
 
-- `scripts/audit_inline_docs.py` - deterministic audit and optional fixer for file headers and type docs in TypeScript, JavaScript, and Swift files.
+- `scripts/audit_inline_docs.py` - deterministic audit and mechanical doc-placement fixer for TypeScript, JavaScript, and Swift files.
+- `scripts/test_audit_inline_docs.py` - smoke tests for the audit helper.
 - `references/audit-and-fix.md` - focused audit loop for applying the script and semantic pass.
 - `references/typescript.md` - TypeScript and JavaScript doc patterns.
 - `references/swift.md` - Swift doc patterns.

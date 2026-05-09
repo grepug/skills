@@ -26,7 +26,7 @@ python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py --type-doc-po
 
 The script enforces only what it can prove reliably:
 
-- file header present
+- file header present and not just a tool directive
 - selected type docs present
 - generated and vendor files excluded
 
@@ -38,6 +38,8 @@ For every reported file:
 - add a doc immediately above each missing selected type declaration
 - keep docs above decorators or attributes
 - rerun the audit before spending time on body comments
+
+Use `--fix` only for mechanical cleanup, such as moving an existing doc above decorators or attributes. The script intentionally does not generate placeholder documentation because those comments tend to restate symbol names instead of explaining intent.
 
 Do not edit generated files. If a generated file is flagged, update the script exclusion rules or the repo's generator.
 
