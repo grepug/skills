@@ -1,0 +1,4 @@
+interface:
+  display_name: "Linear GitHub Coordination"
+  short_description: "Coordinate PM contracts and engineering execution"
+  default_prompt: "Use $linear-github-coordination to decide whether Linear, GitHub, both, or neither should be updated, link artifacts without mirroring bodies, and avoid moving Linear state just because a PR merged."
