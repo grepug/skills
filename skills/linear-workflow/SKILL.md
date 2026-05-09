@@ -9,7 +9,7 @@ Use Linear as the product-management contract layer. A Linear issue should say w
 
 Default to Linear first. Create or update a Linear issue before implementation when a task is meaningful product, design, or implementation work. Use GitHub Issues only when engineering execution needs developer-language decomposition, code anchors, validation detail, repository automation, project tracking, cross-reference, or closeout.
 
-When work involves both Linear and GitHub, use `linear-github-coordination` first to decide artifact ownership, linking, state-transition boundaries, and whether a GitHub engineering issue is actually needed.
+When work involves both Linear and GitHub, use `linear-github-coordination` first to decide artifact ownership, linking, state-transition boundaries, and whether a GitHub engineering issue is actually needed. If `linear-github-coordination` already selected Linear as the mutation surface, continue here without re-entering coordination.
 
 Write Linear issues and comments in the target repo's Linear language. Determine it in this order: explicit user instruction, repo guidance such as `AGENTS.md`, contributor docs, or workflow docs, existing issue body language when updating an issue and no Linear-specific language is defined, then English for new issues with no guidance. Linear language may differ from GitHub issue, PR, code, or general repo working language.
 

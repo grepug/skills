@@ -53,6 +53,8 @@ If Linear and GitHub disagree, Linear owns product intent and acceptance outcome
    - PM/product issue, comment, metadata, or decision request: use `linear-workflow`.
    - Developer execution issue, canonical plan, validation, PR closeout, or merge audit: use `github-issue-workflow`.
 
+After this skill selects a mutation surface, do not bounce back into coordination from the delegated skill. Continue in the selected workflow unless new information changes artifact ownership, product scope, or state-transition assumptions.
+
 ## Default Rules
 
 - Do not create one GitHub issue for every Linear issue by default.

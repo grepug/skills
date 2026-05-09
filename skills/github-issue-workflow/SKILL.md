@@ -9,7 +9,7 @@ Use GitHub Issues as the source of truth for engineering scope, implementation a
 
 Prefer the repo's existing GitHub workflow when it exists. Use the bundled defaults in this skill only when the repo has no established issue templates, label conventions, or execution workflow.
 
-When work involves a Linear product contract, use `linear-github-coordination` first to decide artifact ownership, linking, product-scope drift handling, and whether Linear state should remain PM-managed after PR closeout.
+When work involves a Linear product contract, use `linear-github-coordination` first to decide artifact ownership, linking, product-scope drift handling, and whether Linear state should remain PM-managed after PR closeout. If `linear-github-coordination` already selected GitHub as the mutation surface, continue here without re-entering coordination.
 
 When work depends on third-party, platform, or provider setup outside the repo, do not guess the setup contract and do not defer that research until implementation is already underway. Research the official documentation first, then capture the concrete dependency, how a human retrieves or configures it in the real world, and the verification it unlocks in the issue body before treating the issue as ready for execution.
 
