@@ -11,8 +11,6 @@
 - [x] Re-read the linked issue after implementation
 - [x] Reconciled the canonical plan comment checklist against the shipped code
 - [x] No unchecked implementation checklist items remain in the issue body or canonical plan comment
-- [x] Scope discipline audited: no speculative abstraction, dependency, layer, state, schema, workflow, or adjacent fix exceeds the selected issue/plan contract
-- [x] Documentation/comment coverage audited for changed public APIs, commands, config, migrations, schemas, non-obvious invariants, operations, and user/developer docs
 - [x] This PR inherits the linked issue milestone when one exists
 
 ## Checklist Audit
