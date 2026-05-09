@@ -45,6 +45,7 @@ SKIP_DIR_NAMES = {
 SKIP_DIR_NAMES_LOWER = {name.lower() for name in SKIP_DIR_NAMES}
 
 GENERATED_BANNER_PATTERNS = (
+    re.compile(r"\bautomatically generated\b", re.IGNORECASE),
     re.compile(r"\bauto[- ]?generated\b", re.IGNORECASE),
     re.compile(r"\bgenerated file\b", re.IGNORECASE),
     re.compile(r"\bfile (?:is )?generated\b", re.IGNORECASE),

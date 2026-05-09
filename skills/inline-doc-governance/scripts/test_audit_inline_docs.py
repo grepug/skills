@@ -19,6 +19,7 @@ def main() -> int:
         test_directives_do_not_count_as_docs,
         test_fix_does_not_generate_placeholder_docs,
         test_generated_files_are_skipped,
+        test_automatically_generated_banner_is_skipped,
         test_swift_inline_attributes_are_audited,
         test_export_declare_enum_is_audited,
         test_skipped_directories_are_pruned,
@@ -87,6 +88,28 @@ def test_generated_files_are_skipped() -> None:
             "\n".join(
                 [
                     "// Generated file",
+                    "export interface GeneratedThing {",
+                    "  id: string;",
+                    "}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = run_audit(tmp, "--type-doc-policy", "all")
+        assert result.returncode == 0
+        assert "scanned 0 file(s)" in result.stdout
+
+
+def test_automatically_generated_banner_is_skipped() -> None:
+    with tempfile.TemporaryDirectory(prefix="inline-doc-generated-banner.") as raw_tmp:
+        tmp = Path(raw_tmp)
+        source = tmp / "model.ts"
+        source.write_text(
+            "\n".join(
+                [
+                    "// This file was automatically generated.",
                     "export interface GeneratedThing {",
                     "  id: string;",
                     "}",
