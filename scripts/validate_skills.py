@@ -164,6 +164,22 @@ def validate_skill(skill_dir: Path, errors: list[str]) -> None:
             if result.returncode != 0:
                 detail = result.stderr.strip() or result.stdout.strip() or "unknown syntax error"
                 fail(errors, f"Shell syntax failed for {shell_script.relative_to(ROOT)}: {detail}")
+        for python_test in sorted(scripts_dir.rglob("*.py")):
+            if not is_python_smoke_test(python_test):
+                continue
+            result = subprocess.run(
+                [sys.executable, str(python_test)],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                detail = result.stderr.strip() or result.stdout.strip() or "unknown test failure"
+                fail(errors, f"Python smoke test failed for {python_test.relative_to(ROOT)}: {detail}")
+
+
+def is_python_smoke_test(path: Path) -> bool:
+    return path.name.startswith("test_") or path.name.endswith("_test.py")
 
 
 def main() -> int:

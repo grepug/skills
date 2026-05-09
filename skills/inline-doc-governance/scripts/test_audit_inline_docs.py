@@ -19,6 +19,8 @@ def main() -> int:
         test_directives_do_not_count_as_docs,
         test_fix_does_not_generate_placeholder_docs,
         test_generated_files_are_skipped,
+        test_swift_inline_attributes_are_audited,
+        test_export_declare_enum_is_audited,
         test_skipped_directories_are_pruned,
         test_fix_moves_docs_above_decorators,
     ]
@@ -80,11 +82,11 @@ def test_fix_does_not_generate_placeholder_docs() -> None:
 def test_generated_files_are_skipped() -> None:
     with tempfile.TemporaryDirectory(prefix="inline-doc-generated.") as raw_tmp:
         tmp = Path(raw_tmp)
-        source = tmp / "generated.ts"
+        source = tmp / "model.ts"
         source.write_text(
             "\n".join(
                 [
-                    "// @generated",
+                    "// Generated file",
                     "export interface GeneratedThing {",
                     "  id: string;",
                     "}",
@@ -97,6 +99,57 @@ def test_generated_files_are_skipped() -> None:
         result = run_audit(tmp, "--type-doc-policy", "all")
         assert result.returncode == 0
         assert "scanned 0 file(s)" in result.stdout
+
+
+def test_swift_inline_attributes_are_audited() -> None:
+    with tempfile.TemporaryDirectory(prefix="inline-doc-swift-attribute.") as raw_tmp:
+        tmp = Path(raw_tmp)
+        source = tmp / "Coordinator.swift"
+        source.write_text(
+            "\n".join(
+                [
+                    "// Coordinator.swift",
+                    "//",
+                    "// Coordinates app startup for this module.",
+                    "",
+                    "@MainActor public final class AppCoordinator {",
+                    "}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = run_audit(tmp)
+        assert result.returncode == 1
+        assert "missing-type-doc" in result.stdout
+        assert "AppCoordinator" in result.stdout
+
+
+def test_export_declare_enum_is_audited() -> None:
+    with tempfile.TemporaryDirectory(prefix="inline-doc-declare-enum.") as raw_tmp:
+        tmp = Path(raw_tmp)
+        source = tmp / "states.ts"
+        source.write_text(
+            "\n".join(
+                [
+                    "/**",
+                    " * Defines externally visible state constants for this module.",
+                    " */",
+                    "",
+                    "export declare enum ExternalState {",
+                    "  Ready = 'ready',",
+                    "}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = run_audit(tmp)
+        assert result.returncode == 1
+        assert "missing-type-doc" in result.stdout
+        assert "ExternalState" in result.stdout
 
 
 def test_skipped_directories_are_pruned() -> None:
