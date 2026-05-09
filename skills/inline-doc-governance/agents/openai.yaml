@@ -1,0 +1,4 @@
+interface:
+  display_name: "Inline Doc Governance"
+  short_description: "Audit and set rules for inline documentation coverage"
+  default_prompt: "Use $inline-doc-governance to audit inline documentation coverage, set repo documentation rules, and fix missing headers, type docs, contract docs, or non-obvious why comments."
