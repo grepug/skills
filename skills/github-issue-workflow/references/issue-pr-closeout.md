@@ -16,12 +16,14 @@ When the user asks to merge, re-audit the live PR and all issues that the PR wil
 4. If a separate execution-status comment is necessary before PR closeout, keep it deterministic: current state, selected next slice, blockers, validation, and concrete human follow-up only.
 5. Re-read the issue body after implementation, not before it.
 6. Re-read the canonical plan comment and reconcile every implementation checkbox against shipped code.
-7. Treat unresolved implementation checkboxes as blockers for PR readiness.
-8. Generate the PR body from the linked issue instead of writing it from memory.
-9. Open the PR automatically once the issue is fully implemented and the closeout audit passes.
-10. Before merge, re-read the current PR body and treat unchecked PR checklist items as merge blockers.
-11. Before merge, re-audit every additional issue the PR will close and treat their unresolved checklist state as merge blockers.
-12. If the merge audit fails, report the blockers and continue the work instead of merging.
+7. Audit scope discipline against the selected issue/plan contract. Treat speculative abstractions, dependencies, layers, states, schemas, workflows, or unrelated adjacent fixes as blockers when they are not justified by the issue body, canonical plan, acceptance criteria, or repo constraints.
+8. Audit documentation and comment coverage only where durable explanation is needed: public APIs, command surfaces, configuration, migrations, schemas, non-obvious invariants, operational runbooks, and user- or developer-facing docs must be updated or explicitly marked `None` with a concrete reason.
+9. Treat unresolved implementation checkboxes as blockers for PR readiness.
+10. Generate the PR body from the linked issue instead of writing it from memory.
+11. Open the PR automatically once the issue is fully implemented and the closeout audit passes.
+12. Before merge, re-read the current PR body and treat unchecked PR checklist items as merge blockers.
+13. Before merge, re-audit every additional issue the PR will close and treat their unresolved checklist state as merge blockers.
+14. If the merge audit fails, report the blockers and continue the work instead of merging.
 
 ## Local workflow
 
@@ -70,6 +72,7 @@ python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py merge-pr \
 - If unchecked checklist items remain in the PR body, the merge audit exits non-zero.
 - If the PR is still a draft, the merge audit exits non-zero.
 - If related issues that the PR closes still have unchecked issue or blocking plan items, the merge audit exits non-zero.
+- Scope-discipline and documentation/comment coverage checklist items are treated like any other closeout checklist item: if they are unchecked in the issue, plan comment, or PR body, the audit blocks.
 - Open items under `External Setup Dependencies` remain visible in the audit output but do not block PR creation by themselves.
 - If the current branch already has a PR, the helper updates that PR instead of creating a duplicate.
 - If the current branch is not pushed yet, the helper exits non-zero and tells you to push the branch first.
@@ -80,6 +83,8 @@ python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py merge-pr \
 ## Notes
 
 - The helper is strict on implementation checklists because the failure mode here is agents moving on too early.
+- The overdesign audit is evidence-based. It is not a subjective style review; it blocks only when implementation exceeds the selected contract or repo constraints.
+- The documentation/comment audit is coverage-based. It asks whether durable explanation is needed and present, not whether the diff has enough comments by count.
 - The merge audit is intentionally separate from `open-pr` because PR opening and PR merging happen at different points in the workflow.
 - The helper is local-first. CI can layer on top later, but this workflow should stand on its own without CI.
 - Execution-status comments are optional. When the canonical plan and PR body already carry the durable truth, do not add a separate issue comment.

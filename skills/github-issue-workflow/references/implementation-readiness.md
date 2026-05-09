@@ -107,6 +107,8 @@ Before treating the issue as ready, ask:
 - Does it explain why the chosen dependency or design is being used?
 - Does it distinguish between reversible and irreversible changes?
 - Does it make rollout and verification explicit where relevant?
+- Does it justify any new abstraction, dependency, layer, state, schema, workflow, or adjacent fix that could look broader than the requested contract?
+- Does it identify required docs or comments for public APIs, commands, config, migrations, schemas, non-obvious invariants, operations, or user/developer docs?
 
 ## Completion rule
 
@@ -117,12 +119,15 @@ Before opening or updating the PR, verify all of the following:
 - the issue body still matches the shipped scope
 - the canonical plan comment checklist has been reconciled against the shipped code
 - no implementation checklist item remains unchecked in the issue body or the canonical plan comment
+- the shipped code stays within the selected issue/plan contract, with no unjustified speculative abstraction or adjacent fix
+- required documentation/comment coverage is updated, or `None` is justified in the canonical plan
 - the PR body closes the linked issue and summarizes closeout instead of inventing a different checklist
 
 Before merging the PR on user request, verify all of the following:
 
 - no PR checklist item remains unchecked
 - every additional issue the PR closes has reconciled issue and canonical-plan checklist state
+- scope discipline and required documentation/comment coverage still match the final diff
 - any merge blocker is reported and worked through instead of being bypassed
 
 If those conditions are not true yet, the work is still in execution even if the code is already written.
