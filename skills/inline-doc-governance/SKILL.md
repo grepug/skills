@@ -72,7 +72,7 @@ python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py --type-doc-po
 Strict mode:
 
 ```bash
-python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py --type-doc-policy all src clients/apple/Packages/App/Sources
+python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py --type-doc-policy all src packages/app/src
 ```
 
 Use `--fix` only for mechanical cleanup, such as moving an existing doc above decorators or attributes. It does not invent missing documentation text:
@@ -141,6 +141,17 @@ Do not create repo docs just to satisfy this skill. Add durable policy only when
 - Reference constants by name instead of duplicating values that may drift.
 - Date or version-gate workaround comments when the workaround is expected to expire.
 - Remove stale comments while editing the code they describe.
+
+## Comment Sync Rules
+
+When changing code, keep nearby comments in the same edit pass:
+
+- Read the file header, type docs, method docs, and inline comments before changing behavior.
+- Update comments whose stated contract, side effect, ownership, fallback, or edge case changed.
+- Delete comments that no longer match the code.
+- Do not leave "almost right" comments for a later cleanup pass.
+- If a change makes a comment unnecessary because the code is now self-explanatory, remove the comment instead of rewriting it.
+- If a public API change affects docs in another file, update the local caller-facing docs in the same PR.
 
 ## Generated File Rules
 

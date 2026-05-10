@@ -15,7 +15,7 @@ Narrow scope:
 ```bash
 python3 path/to/inline-doc-governance/scripts/audit_inline_docs.py \
   --type-doc-policy public \
-  src clients/apple/Packages/App/Sources
+  src packages/app/src
 ```
 
 Strict repos:
@@ -54,6 +54,7 @@ Look for:
 - ambiguous parameters or return values
 - side effects such as network I/O, file I/O, persistence, logging, caching, retries, or state mutation
 - timeout, ordering, fallback, compatibility, normalization, provider-quirk, or boundary decisions without a local why-comment
+- comments that no longer match the code after the behavior, contract, side effect, ownership, or edge case changed
 
 Skip:
 
@@ -61,6 +62,8 @@ Skip:
 - tiny helpers whose names fully explain behavior
 - comments that paraphrase the code
 - generated, vendored, build-output, or dependency files
+
+When a code change alters behavior, update or delete nearby comments in the same pass. Do not leave stale comments for a later documentation cleanup.
 
 ## 4. Rerun The Audit
 
