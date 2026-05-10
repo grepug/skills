@@ -23,7 +23,7 @@ DRAFT_PR_PATTERN = re.compile(
     re.IGNORECASE,
 )
 INLINE_DOC_AUDIT_PATTERN = re.compile(
-    r"^\s*[-*]\s*\[x\]\s*(?:Ran inline-doc-governance|Explicitly skipped inline-doc-governance)\b.+$",
+    r"^\s*[-*]\s*\[x\]\s*(?:Ran inline-doc-governance for changed repo-owned source files|Explicitly skipped inline-doc-governance):\s*\S.*$",
     re.IGNORECASE | re.MULTILINE,
 )
 NON_DETERMINISTIC_COMMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -563,10 +563,13 @@ def plan_comment_link(issue: dict[str, Any], plan_comment: dict[str, Any] | None
 
 
 def inline_doc_audit_line(status: str, note: str) -> str:
+    stripped_note = note.strip()
+    if not stripped_note:
+        raise ValueError("--inline-doc-audit-note must contain non-whitespace proof.")
     if status == "ran":
-        return f"Ran inline-doc-governance for changed repo-owned source files: {note}"
+        return f"Ran inline-doc-governance for changed repo-owned source files: {stripped_note}"
     if status == "skipped":
-        return f"Explicitly skipped inline-doc-governance: {note}"
+        return f"Explicitly skipped inline-doc-governance: {stripped_note}"
     raise ValueError(f"Unsupported inline-doc audit status: {status}")
 
 
