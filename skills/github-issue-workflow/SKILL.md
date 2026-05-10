@@ -175,22 +175,26 @@ Before opening or updating a PR for an execution issue, do all of the following 
 1. Re-read the issue body, especially acceptance criteria and constraints
 2. Re-read the canonical plan comment and reconcile every implementation checklist item against the shipped code
 3. Finish, remove, or explicitly rewrite any stale unchecked checklist item in the issue or plan comment before claiming the work is done
-4. Generate or update the PR body from the linked issue instead of writing it from memory
-5. Open or update a PR that closes the issue directly
+4. If the PR changes repo-owned source files, use `inline-doc-governance` to audit changed paths for file headers, public or cross-boundary type docs, comment quality, generated-file exclusions, and comment/code sync
+5. Generate or update the PR body from the linked issue instead of writing it from memory
+6. Open or update a PR that closes the issue directly
 
 Before merging a PR for an execution issue on user request, do all of the following in this order:
 
 1. Re-read the current PR body and treat unchecked PR checklist items as merge blockers
 2. Re-audit the linked issue body and canonical plan comment against the shipped code
-3. Re-audit every additional issue that the PR will close on merge
-4. If any PR, issue, or canonical-plan checklist item is still open, report why merge is blocked and continue the work instead of merging
-5. Merge only after the merge audit passes
+3. Re-run or verify the `inline-doc-governance` audit if source files changed after the PR was opened or last updated
+4. Re-audit every additional issue that the PR will close on merge
+5. If any PR, issue, or canonical-plan checklist item is still open, report why merge is blocked and continue the work instead of merging
+6. Merge only after the merge audit passes
 
 Rules:
 
 - do not leave issue checklist items unchecked merely because the work has moved into PR review
 - do not leave PR checklists drifting from the issue; the PR should summarize closeout, not replace the source-of-truth issue
 - treat unchecked implementation items in the issue body or canonical plan comment as blockers for PR readiness
+- for source-changing PRs, treat stale or missing comments on file headers, public contracts, boundary types, side effects, and non-obvious decisions as PR-readiness blockers
+- skip generated, vendored, test, and build-output files according to `inline-doc-governance`; if the audit flags generated code, fix the exclusion rule instead of editing generated output
 - for repos using the bundled defaults, use `scripts/issue_pr_closeout.py` as the local closeout gate before opening or updating the PR
 - if the script reports unresolved checklist items, a missing canonical plan comment, or a non-deterministic execution-status comment, fix the issue state first instead of bypassing the gate
 - for merge requests, use `scripts/issue_pr_closeout.py merge-pr` so the PR body, linked issue, canonical plan comment, and related closing issues are audited immediately before merge
@@ -309,6 +313,7 @@ Rules:
 
 When the repo uses the bundled defaults, read `references/issue-pr-closeout.md` before opening the PR and use `scripts/issue_pr_closeout.py` to audit the issue state and create or update the PR body locally.
 When the user asks to merge, run the merge audit through `scripts/issue_pr_closeout.py merge-pr` before calling `gh pr merge`.
+For source-changing PRs, run `inline-doc-governance` before PR creation and re-check it before merge when new commits change source files.
 
 ## Execution-status comment
 
@@ -353,6 +358,7 @@ Successful use of this skill should leave:
 - zero or one deterministic execution-status comment when live execution facts need a dedicated issue update
 - a PR that links back to the issue and closes it directly when the issue is fully implemented
 - no unchecked implementation checklist items left behind in the issue body or canonical plan comment at PR open time
+- source-changing PRs audited with `inline-doc-governance` so comments stay synchronized with the code under review
 - no unchecked PR checklist items or related closing-issue checklist items left behind at merge time
 - labels applied according to repo policy or the portable defaults
 - no competing repo-local plan or todo file acting as the live tracker
