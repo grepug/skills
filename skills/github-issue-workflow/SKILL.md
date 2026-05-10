@@ -196,6 +196,7 @@ Rules:
 - for source-changing PRs, treat stale or missing comments on file headers, public contracts, boundary types, side effects, and non-obvious decisions as PR-readiness blockers
 - skip generated, vendored, test, and build-output files according to `inline-doc-governance`; if the audit flags generated code, fix the exclusion rule instead of editing generated output
 - for repos using the bundled defaults, use `scripts/issue_pr_closeout.py` as the local closeout gate before opening or updating the PR
+- when rendering or opening a PR with the helper, pass `--inline-doc-audit ran|skipped` and `--inline-doc-audit-note` so the PR body records audit proof instead of assuming it
 - if the script reports unresolved checklist items, a missing canonical plan comment, or a non-deterministic execution-status comment, fix the issue state first instead of bypassing the gate
 - for merge requests, use `scripts/issue_pr_closeout.py merge-pr` so the PR body, linked issue, canonical plan comment, and related closing issues are audited immediately before merge
 - if the merge audit reports unresolved items, the work is not done yet; continue execution on those items instead of merging

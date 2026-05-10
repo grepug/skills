@@ -22,6 +22,10 @@ DRAFT_PR_PATTERN = re.compile(
     r"\b(?:belongs to draft (?:pr|pull request)|draft[- ]pr[- ]only(?: findings?)?)\b",
     re.IGNORECASE,
 )
+INLINE_DOC_AUDIT_PATTERN = re.compile(
+    r"^\s*[-*]\s*\[x\]\s*(?:Ran inline-doc-governance|Explicitly skipped inline-doc-governance)\b.+$",
+    re.IGNORECASE | re.MULTILINE,
+)
 NON_DETERMINISTIC_COMMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     (
         "execution-is-not-started marker",
@@ -151,6 +155,8 @@ class PullRequestAudit:
             problems.append(f"PR #{self.pr['number']} is still a draft.")
         if self.open_pr_items:
             problems.append(f"PR body still has {len(self.open_pr_items)} unchecked checklist item(s).")
+        if not pr_has_inline_doc_audit_status(self.pr):
+            problems.append("PR body is missing an explicit inline-doc-governance audit status.")
         if not pr_closes_issue(self.pr, self.linked_issue.issue["number"]):
             problems.append(
                 f"PR #{self.pr['number']} does not close linked issue #{self.linked_issue.issue['number']}."
@@ -189,6 +195,17 @@ def build_parser() -> argparse.ArgumentParser:
                 action="append",
                 default=[],
                 help="Validation bullet for the PR body. Repeat to add more bullets.",
+            )
+            subparser.add_argument(
+                "--inline-doc-audit",
+                choices=("ran", "skipped"),
+                required=True,
+                help="Whether inline-doc-governance was run or intentionally skipped for changed repo-owned source files.",
+            )
+            subparser.add_argument(
+                "--inline-doc-audit-note",
+                required=True,
+                help="Command/result when ran, or reason when skipped.",
             )
             subparser.add_argument(
                 "--title",
@@ -459,6 +476,10 @@ def pr_closes_issue(pr: dict[str, Any], issue_number: int) -> bool:
     return False
 
 
+def pr_has_inline_doc_audit_status(pr: dict[str, Any]) -> bool:
+    return bool(INLINE_DOC_AUDIT_PATTERN.search(str(pr.get("body", ""))))
+
+
 def resolve_pr_reference(pr_ref: str | None, repo: str | None) -> str:
     if pr_ref:
         return pr_ref
@@ -541,7 +562,21 @@ def plan_comment_link(issue: dict[str, Any], plan_comment: dict[str, Any] | None
     return issue["url"]
 
 
-def render_pr_body(audit: AuditResult, summaries: list[str], validations: list[str]) -> str:
+def inline_doc_audit_line(status: str, note: str) -> str:
+    if status == "ran":
+        return f"Ran inline-doc-governance for changed repo-owned source files: {note}"
+    if status == "skipped":
+        return f"Explicitly skipped inline-doc-governance: {note}"
+    raise ValueError(f"Unsupported inline-doc audit status: {status}")
+
+
+def render_pr_body(
+    audit: AuditResult,
+    summaries: list[str],
+    validations: list[str],
+    inline_doc_audit: str,
+    inline_doc_audit_note: str,
+) -> str:
     template = PR_TEMPLATE_PATH.read_text(encoding="utf-8")
     summary_lines = render_lines(
         summaries,
@@ -558,6 +593,7 @@ def render_pr_body(audit: AuditResult, summaries: list[str], validations: list[s
         "{{PLAN_BLOCKING_OPEN_COUNT}}": str(len(audit.blocking_plan_items)),
         "{{PLAN_NON_BLOCKING_OPEN_COUNT}}": str(len(audit.non_blocking_plan_items)),
         "{{PLAN_COMMENT_LINK}}": plan_comment_link(audit.issue, audit.plan_comment),
+        "{{INLINE_DOC_AUDIT_LINE}}": inline_doc_audit_line(inline_doc_audit, inline_doc_audit_note),
         "{{VALIDATION_LINES}}": validation_lines,
     }
 
@@ -677,6 +713,8 @@ def open_or_update_pr(
     title: str | None,
     summaries: list[str],
     validations: list[str],
+    inline_doc_audit: str,
+    inline_doc_audit_note: str,
     base: str | None,
     head: str | None,
     draft: bool,
@@ -688,7 +726,7 @@ def open_or_update_pr(
         raise SystemExit(1)
 
     pr_title = title or str(audit.issue["title"])
-    pr_body = render_pr_body(audit, summaries, validations)
+    pr_body = render_pr_body(audit, summaries, validations, inline_doc_audit, inline_doc_audit_note)
     head_branch = head or current_branch()
     existing_pr = find_existing_pr(head_branch, repo)
     milestone = audit.issue.get("milestone") or {}
@@ -817,7 +855,15 @@ def main() -> int:
         return 1
 
     if args.command == "pr-body":
-        print(render_pr_body(audit, args.summary, args.validation))
+        print(
+            render_pr_body(
+                audit,
+                args.summary,
+                args.validation,
+                args.inline_doc_audit,
+                args.inline_doc_audit_note,
+            )
+        )
         return 0
 
     open_or_update_pr(
@@ -826,6 +872,8 @@ def main() -> int:
         title=args.title,
         summaries=args.summary,
         validations=args.validation,
+        inline_doc_audit=args.inline_doc_audit,
+        inline_doc_audit_note=args.inline_doc_audit_note,
         base=args.base,
         head=args.head,
         draft=args.draft,

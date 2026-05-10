@@ -48,6 +48,8 @@ Render the PR body without creating the PR:
 ```bash
 python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py pr-body \
   --issue 123 \
+  --inline-doc-audit ran \
+  --inline-doc-audit-note "inline-doc-governance audit passed for changed source paths" \
   --summary "Implement issue-to-PR closeout gate in the skill" \
   --summary "Add a local helper script for audit and PR creation"
 ```
@@ -58,6 +60,8 @@ Create or update the PR after the audit passes:
 python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py open-pr \
   --issue 123 \
   --base main \
+  --inline-doc-audit ran \
+  --inline-doc-audit-note "inline-doc-governance audit passed for changed source paths" \
   --summary "Implement issue-to-PR closeout gate in the skill" \
   --summary "Add a local helper script for audit and PR creation" \
   --validation "python3 scripts/quick_validate_skill.py skills/github-issue-workflow"
@@ -81,6 +85,8 @@ python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py merge-pr \
 - If the PR is still a draft, the merge audit exits non-zero.
 - If related issues that the PR closes still have unchecked issue or blocking plan items, the merge audit exits non-zero.
 - Open items under `External Setup Dependencies` remain visible in the audit output but do not block PR creation by themselves.
+- The helper requires `--inline-doc-audit ran|skipped` and `--inline-doc-audit-note` when rendering or opening a PR.
+- The merge audit exits non-zero when the PR body does not include an explicit checked inline-doc audit status.
 - If the current branch already has a PR, the helper updates that PR instead of creating a duplicate.
 - If the current branch is not pushed yet, the helper exits non-zero and tells you to push the branch first.
 - The helper carries the issue milestone into the PR when one exists.

@@ -11,7 +11,7 @@
 - [x] Re-read the linked issue after implementation
 - [x] Reconciled the canonical plan comment checklist against the shipped code
 - [x] No unchecked implementation checklist items remain in the issue body or canonical plan comment
-- [x] Ran or explicitly skipped inline-doc-governance for changed repo-owned source files
+- [x] {{INLINE_DOC_AUDIT_LINE}}
 - [x] This PR inherits the linked issue milestone when one exists
 
 ## Checklist Audit
