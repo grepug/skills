@@ -26,6 +26,7 @@ def main() -> int:
         test_export_declare_enum_is_audited,
         test_skipped_directories_are_pruned,
         test_fix_moves_docs_above_decorators,
+        test_trailing_block_comment_does_not_reuse_file_header,
     ]
 
     for test in tests:
@@ -281,6 +282,33 @@ def test_fix_moves_docs_above_decorators() -> None:
         assert result.returncode == 0
         text = source.read_text(encoding="utf-8")
         assert "/** Coordinates queue work for callers. */\n@Injectable()" in text
+
+
+def test_trailing_block_comment_does_not_reuse_file_header() -> None:
+    with tempfile.TemporaryDirectory(prefix="inline-doc-trailing-block.") as raw_tmp:
+        tmp = Path(raw_tmp)
+        source = tmp / "queue.ts"
+        source.write_text(
+            "\n".join(
+                [
+                    "/**",
+                    " * Owns queue coordination for this module.",
+                    " */",
+                    "",
+                    "const marker = true; /* local note */",
+                    "export interface QueueOptions {",
+                    "  id: string;",
+                    "}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = run_audit(tmp)
+        assert result.returncode == 1
+        assert "missing-type-doc" in result.stdout
+        assert "QueueOptions" in result.stdout
 
 
 def run_audit(path: Path, *args: str) -> subprocess.CompletedProcess[str]:

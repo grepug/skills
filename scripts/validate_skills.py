@@ -15,6 +15,7 @@ REQUIRED_FRONTMATTER_KEYS = ("name", "description")
 REFERENCE_PATTERN = re.compile(r"(?:^|[^A-Za-z0-9_./-])((?:scripts|assets|references)/[A-Za-z0-9._/-]+)")
 FRONTMATTER_PATTERN = re.compile(r"\A---\n(.*?)\n---\n", re.DOTALL)
 MAX_SKILL_NAME_LENGTH = 64
+PYTHON_SMOKE_TEST_TIMEOUT_SECS = 60
 MIRRORED_ISSUE_TEMPLATE_SKILL_DIR = ROOT / "skills" / "github-issue-workflow" / "assets" / "issue-templates"
 MIRRORED_ISSUE_TEMPLATE_ROOT_DIR = ROOT / ".github" / "ISSUE_TEMPLATE"
 
@@ -167,12 +168,21 @@ def validate_skill(skill_dir: Path, errors: list[str]) -> None:
         for python_test in sorted(scripts_dir.rglob("*.py")):
             if not is_python_smoke_test(python_test):
                 continue
-            result = subprocess.run(
-                [sys.executable, str(python_test)],
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            try:
+                result = subprocess.run(
+                    [sys.executable, str(python_test)],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=PYTHON_SMOKE_TEST_TIMEOUT_SECS,
+                )
+            except subprocess.TimeoutExpired:
+                fail(
+                    errors,
+                    f"Python smoke test timed out after {PYTHON_SMOKE_TEST_TIMEOUT_SECS}s for {python_test.relative_to(ROOT)}",
+                )
+                continue
+
             if result.returncode != 0:
                 detail = result.stderr.strip() or result.stdout.strip() or "unknown test failure"
                 fail(errors, f"Python smoke test failed for {python_test.relative_to(ROOT)}: {detail}")

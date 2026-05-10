@@ -588,12 +588,8 @@ def has_doc_comment(lines: list[str], index: int) -> bool:
         return comment_range is not None and comment_has_doc_text(lines[comment_range[0] : comment_range[1] + 1])
 
     if stripped.endswith("*/"):
-        cursor = index
-        while cursor >= 0:
-            current = lines[cursor].strip()
-            if current.startswith("/**") or current.startswith("/*"):
-                return comment_has_doc_text(lines[cursor : index + 1])
-            cursor -= 1
+        comment_range = doc_comment_range_ending_at(lines, index)
+        return comment_range is not None and comment_has_doc_text(lines[comment_range[0] : comment_range[1] + 1])
 
     return False
 
@@ -622,12 +618,18 @@ def doc_comment_range_ending_at(lines: list[str], end_index: int) -> tuple[int, 
         return start, end_index
 
     if stripped.endswith("*/"):
-        start = end_index
-        while start >= 0:
-            current = lines[start].strip()
+        if stripped.startswith("/**") or stripped.startswith("/*"):
+            return end_index, end_index
+
+        cursor = end_index - 1
+        while cursor >= 0:
+            current = lines[cursor].strip()
             if current.startswith("/**") or current.startswith("/*"):
-                return start, end_index
-            start -= 1
+                return cursor, end_index
+            if current.startswith("*"):
+                cursor -= 1
+                continue
+            return None
 
     return None
 
