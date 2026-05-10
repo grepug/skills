@@ -22,8 +22,10 @@ DRAFT_PR_PATTERN = re.compile(
     r"\b(?:belongs to draft (?:pr|pull request)|draft[- ]pr[- ]only(?: findings?)?)\b",
     re.IGNORECASE,
 )
+INLINE_DOC_AUDIT_RAN_PREFIX = "Ran inline-doc-governance for changed repo-owned source files"
+INLINE_DOC_AUDIT_SKIPPED_PREFIX = "Explicitly skipped inline-doc-governance"
 INLINE_DOC_AUDIT_PATTERN = re.compile(
-    r"^\s*[-*]\s*\[x\]\s*(?:Ran inline-doc-governance for changed repo-owned source files|Explicitly skipped inline-doc-governance):\s*\S.*$",
+    rf"^[\t ]*[-*][\t ]+\[x\][\t ]+(?:{re.escape(INLINE_DOC_AUDIT_RAN_PREFIX)}|{re.escape(INLINE_DOC_AUDIT_SKIPPED_PREFIX)}):[\t ]*\S.*$",
     re.IGNORECASE | re.MULTILINE,
 )
 NON_DETERMINISTIC_COMMENT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
@@ -567,9 +569,9 @@ def inline_doc_audit_line(status: str, note: str) -> str:
     if not stripped_note:
         raise ValueError("--inline-doc-audit-note must contain non-whitespace proof.")
     if status == "ran":
-        return f"Ran inline-doc-governance for changed repo-owned source files: {stripped_note}"
+        return f"{INLINE_DOC_AUDIT_RAN_PREFIX}: {stripped_note}"
     if status == "skipped":
-        return f"Explicitly skipped inline-doc-governance: {stripped_note}"
+        return f"{INLINE_DOC_AUDIT_SKIPPED_PREFIX}: {stripped_note}"
     raise ValueError(f"Unsupported inline-doc audit status: {status}")
 
 
