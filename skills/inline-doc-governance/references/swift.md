@@ -91,11 +91,10 @@ public protocol DocumentCache: Sendable {
 /// Dependency wiring for the app-owned document cache.
 ///
 /// Centralizes the dependency key so callers read and override one stable value.
-public struct DocumentCacheContainer {
-    public var cache: any DocumentCache
-
-    public init(cache: any DocumentCache) {
-        self.cache = cache
+public extension EnvironmentValues {
+    var documentCache: any DocumentCache {
+        get { self[DocumentCacheKey.self] }
+        set { self[DocumentCacheKey.self] = newValue }
     }
 }
 ```

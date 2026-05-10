@@ -20,6 +20,8 @@ def main() -> int:
         test_fix_does_not_generate_placeholder_docs,
         test_generated_files_are_skipped,
         test_automatically_generated_banner_is_skipped,
+        test_missing_paths_fail,
+        test_parent_skip_dir_names_do_not_skip_scan_root,
         test_swift_inline_attributes_are_audited,
         test_export_declare_enum_is_audited,
         test_skipped_directories_are_pruned,
@@ -122,6 +124,44 @@ def test_automatically_generated_banner_is_skipped() -> None:
         result = run_audit(tmp, "--type-doc-policy", "all")
         assert result.returncode == 0
         assert "scanned 0 file(s)" in result.stdout
+
+
+def test_missing_paths_fail() -> None:
+    with tempfile.TemporaryDirectory(prefix="inline-doc-missing-path.") as raw_tmp:
+        tmp = Path(raw_tmp)
+        missing = tmp / "missing"
+
+        result = run_audit(missing)
+        assert result.returncode == 2
+        assert "path does not exist" in result.stderr
+
+
+def test_parent_skip_dir_names_do_not_skip_scan_root() -> None:
+    with tempfile.TemporaryDirectory(prefix="inline-doc-parent-skip.") as raw_tmp:
+        tmp = Path(raw_tmp)
+        checkout = tmp / "vendor" / "checkout"
+        src = checkout / "src"
+        src.mkdir(parents=True)
+        (src / "queue.ts").write_text(
+            "\n".join(
+                [
+                    "/**",
+                    " * Owns queue configuration for this module.",
+                    " */",
+                    "",
+                    "/** Stable queue options exposed to callers. */",
+                    "export interface QueueOptions {",
+                    "  id: string;",
+                    "}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        result = run_audit(checkout)
+        assert result.returncode == 0
+        assert "scanned 1 file(s)" in result.stdout
 
 
 def test_swift_inline_attributes_are_audited() -> None:

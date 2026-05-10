@@ -160,6 +160,12 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     roots = [Path(raw).resolve() for raw in args.paths]
+    missing_roots = [root for root in roots if not root.exists()]
+    if missing_roots:
+        for root in missing_roots:
+            print(f"inline-doc audit error: path does not exist: {root}", file=sys.stderr)
+        return 2
+
     issues: list[Issue] = []
     scanned_files = 0
     fixed_files = 0
@@ -189,10 +195,8 @@ def main() -> int:
 def iter_supported_files(roots: list[Path]):
     seen: set[Path] = set()
     for root in roots:
-        if not root.exists():
-            continue
         if root.is_file():
-            if is_supported_source(root) and not should_skip(root):
+            if is_supported_source(root) and not should_skip(root, root.parent):
                 resolved = root.resolve()
                 if resolved not in seen:
                     seen.add(resolved)
@@ -205,7 +209,7 @@ def iter_supported_files(roots: list[Path]):
                 path = Path(dirpath) / filename
                 if not is_supported_source(path):
                     continue
-                if should_skip(path):
+                if should_skip(path, root):
                     continue
                 resolved = path.resolve()
                 if resolved in seen:
@@ -222,13 +226,14 @@ def is_supported_source(path: Path) -> bool:
     return path.suffix in SUPPORTED_SUFFIXES
 
 
-def should_skip(path: Path) -> bool:
-    lowered_parts = {part.lower() for part in path.parts}
+def should_skip(path: Path, scan_root: Path) -> bool:
+    relative_path = path_relative_to_scan_root(path, scan_root)
+    lowered_parts = {part.lower() for part in relative_path.parts}
     if lowered_parts & SKIP_DIR_NAMES_LOWER:
         return True
 
     name = path.name.lower()
-    path_text = str(path).replace("\\", "/").lower()
+    path_text = str(relative_path).replace("\\", "/").lower()
 
     if name in {"generated.ts", "generated.js", "generated.swift"}:
         return True
@@ -254,6 +259,13 @@ def should_skip(path: Path) -> bool:
         return True
 
     return has_generated_banner(path)
+
+
+def path_relative_to_scan_root(path: Path, scan_root: Path) -> Path:
+    try:
+        return path.resolve().relative_to(scan_root.resolve())
+    except ValueError:
+        return Path(path.name)
 
 
 def has_generated_banner(path: Path) -> bool:
