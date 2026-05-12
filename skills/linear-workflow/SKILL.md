@@ -1,92 +1,205 @@
 ---
 name: linear-workflow
-description: Use when creating or updating Linear issues as PM/product contracts, turning docs or discussion into Linear work, applying Linear labels/cycles/priorities/assignees/projects, discussing contract flaws, or linking Linear product issues to GitHub engineering issues and PRs.
+description: 当需要创建、更新、检查或讨论 Linear issue，把产品文档拆成可执行任务，管理 Linear 标签、状态、优先级、项目归属、问题确认和产品文档同步时使用。
 ---
 
 # Linear Workflow
 
-Use Linear as the product-management contract layer. A Linear issue should say what outcome is needed, why it matters, what is in or out of scope, how success will be accepted, which source material informed it, and what still needs product decision.
+Linear 是产品执行合同和进度管理层。一个 Linear issue 应该说清楚：要解决什么问题、为什么重要、包含什么、不包含什么、怎样验收、还有哪些产品问题待确认。
 
-Default to Linear first. Create or update a Linear issue before implementation when a task is meaningful product, design, or implementation work. Use GitHub Issues only when engineering execution needs developer-language decomposition, code anchors, validation detail, repository automation, project tracking, cross-reference, or closeout.
+对 Tell App 来说，本地产品文档是长期产品真相，Linear 是执行合同和状态流转层。Linear issue 应该足够完整，让开发或 AI 能主要根据 issue 内容完成工作；但 Linear issue 不替代本地产品文档。
 
-Write Linear issues and comments in the target repo's Linear language. Determine it in this order: explicit user instruction, repo guidance such as `AGENTS.md`, contributor docs, or workflow docs, existing issue body language when updating an issue and no Linear-specific language is defined, then English for new issues with no guidance. Linear language may differ from GitHub issue, PR, code, or general repo working language.
+如果 Linear 中形成了会影响产品行为、范围、验收标准、数据规则、状态规则、语言规则或 Agent 行为的稳定决定，AI 必须先询问 PM 是否同步回本地产品文档，不得自行直接修改本地文档。
 
-## Use When
+## 使用场景
 
-- The user asks to create, update, inspect, or discuss Linear issues.
-- Product docs, PRDs, chat notes, oral decisions, branches, PRs, or pasted context need to become PM-language Linear work.
-- A developer needs to push back on a Linear issue because scope, acceptance criteria, feasibility, sequencing, or interpretation is unclear.
-- Linear metadata such as labels, priorities, cycles, projects, milestones, assignees, estimates, blockers, or related issues should be applied.
-- A Linear product issue needs a linked GitHub engineering issue or PR.
-- A workspace needs a portable starting taxonomy for Linear metadata.
+在以下情况使用这个 skill：
 
-## Core Model
+- 用户要求创建、更新、检查或讨论 Linear issue。
+- 本地产品文档、交互文档、聊天讨论、口头决策或截图需要转成 Linear 任务。
+- 开发或 AI 对某个 issue 的范围、验收标准、可行性、顺序或理解提出疑问。
+- 需要设置 Linear 的标签、状态、优先级、负责人、项目、里程碑、父子关系、阻塞关系或关联关系。
+- 需要根据 Linear 中的新决定判断是否同步本地产品文档。
+- 需要把一个过大的需求拆成多个可执行 issue。
 
-- Linear issue: PM/product contract, product decisions, acceptance outcomes, scope, source links, blockers, and PRD sync state.
-- Linear comment: product-scope discussion, pushback, decision request, decision summary, blocker, or handoff note.
-- GitHub issue: optional developer execution record with code anchors, implementation plan, validation commands, technical risks, and PR closeout.
-- GitHub PR: implementation diff, review trail, validation proof, and merge record.
-- Durable docs or PRDs: stable product memory after Linear decisions settle.
+## 核心模型
 
-If Linear and GitHub differ, Linear owns product intent and acceptance outcomes. GitHub owns engineering execution details and validation proof. Sync material product changes back to Linear before continuing.
+- 本地产品文档：长期产品真相，记录稳定的产品规则、交互规则、数据规则和决策。
+- Linear Project：一个阶段性目标，例如 V1 上线。
+- Linear Milestone：项目内的阶段或闭环，例如首次体验闭环、Story 创建闭环、练习闭环、语言与市场适配、上线基础能力。
+- Linear issue：执行合同，描述一个可以开发和验收的产品任务。
+- Linear comment：讨论、提问、决策记录和交接说明。
+- GitHub issue：仅在需要更细的开发执行记录时使用。
+- GitHub PR：开发结果、检查记录和合并记录。
 
-## Mode Selection
+如果 Linear 和本地产品文档不一致，先确认哪一个是最新结论。不要静默覆盖任何一边。
 
-Use PM mode when the input is product intent, source material, PRD content, discussion notes, a roadmap item, or a request to shape PM-facing work. Read `references/pm-mode.md` for detailed issue-body shape and examples.
+## Tell App 固定标签
 
-Use developer mode when the input starts from implementation, code, a branch, a PR, an engineering concern, or a Linear issue that needs developer execution tracking. Read `references/developer-mode.md`.
+除非用户明确要求新增，否则 Tell App 只使用以下标签：
 
-For any work that creates or updates a Linear issue, first discover the workspace metadata and apply existing conventions. Read `references/linear-metadata.md`.
+- Feature：新功能。
+- Improvement：已有功能优化。
+- Bug：错误行为或回归问题。
+- Agent：AI / Agent 相关能力或行为。
+- 待产品确认：有产品决策阻塞，或验收标准不清楚。
 
-When the workspace has no useful metadata conventions, propose the portable preset before creating new labels, projects, or status conventions. Read `references/preset-taxonomy.md`.
+不要用临时标签表达项目范围、上线批次或文档同步状态。项目范围优先用 Project / Milestone 管理；文档同步通过询问 PM 处理，不通过标签管理。
 
-When a detail is unclear, a body edit is made, or a developer finds a flaw in the product contract, comment in Linear instead of resolving it only in chat or GitHub. Read `references/discussion.md`.
+## Tell App 状态规则
 
-## Required Workflow
+Tell App 使用以下状态：
 
-1. Identify the mode: PM or developer.
-2. Inspect the source of truth available for the task: docs, issue, discussion, branch, PR, repo guidance, or pasted context.
-3. Determine the Linear language hierarchy: explicit user instruction, repo guidance, existing issue body language for updates with no designation, then English for new issues with no guidance.
-4. Search for an existing Linear issue with matching source links, title, project, branch, PR, GitHub issue, or product scope. Reuse or update the existing contract when one matches; create a new issue only when no matching contract exists.
-5. Extract requirements that still need PM discussion before acceptance or closeout. Include them explicitly in the Linear issue or comment.
-6. Discover Linear team metadata before assigning fields.
-7. Reuse existing labels, statuses, cycles, projects, milestones, and assignees where they fit.
-8. Create or update the Linear issue in PM language, using the determined Linear language.
-9. Link source material and implementation artifacts.
-10. If developer execution needs a GitHub issue, create or update it with developer-language scope and link it back to Linear.
-11. Use Linear comments for product-contract discussion, decision requests, scope changes, and final product decisions.
-12. After a Linear comment records or resolves a product decision, reconcile the issue body before continuing implementation or closeout: the body should show only the current contract, while comments preserve the decision history.
-13. Each time you edit the issue body, leave a Linear comment in the determined Linear language, summarizing what changed and why, with links to the decision or source material when available.
+- Backlog：需求已识别，但范围、验收标准或优先级还不够清楚。
+- Todo：需求已经准备好，开发或 AI 可以根据 issue 内容开始做。
+- In Progress：正在开发。
+- In Review：开发已完成到可检查状态，但还没进入产品测试。
+- Testing：可以进入 PM / 产品测试或完整用户流程验证。
+- Done：已验收，没有阻塞问题，并且 PM 已确认不需要再同步本地文档，或需要同步的本地文档已经完成。
+- Canceled：不再需要。
 
-## Linear Write Policy
+Tell App 不使用 Duplicate 作为默认流程状态。发现重复 issue 时，先询问 PM 保留哪一个，再按需要取消或关联。
 
-- Read-only inspect, audit, summarize, or discuss requests should not mutate Linear unless the user explicitly asks for an update.
-- Before creating a new issue, confirm the target team when more than one team fits or no repo/workspace default is explicit.
-- Before major body rewrites, status changes, duplicate closure, or metadata changes that route ownership or priority, draft the intended update and apply it only when the user request or Linear discussion clearly authorizes that mutation.
-- When the target issue and requested edit are explicit, apply the update directly, then report what changed.
-- Never silently overwrite an issue body from stale or conflicting source material. If sources disagree, comment with the decision needed or ask before rewriting the contract.
+## Issue 创建后的初始状态判断
 
-## Output
+创建新 issue 时：
 
-Successful use of this skill should leave:
+- 如果目标、范围、边界、验收标准都清楚，且没有阻塞性产品问题，设为 Todo。
+- 如果需求成立，但范围不清、验收标准不清，或优先级不确定，设为 Backlog。
+- 如果没有 PM 决策就无法合理开发，设为 Backlog，并加 `待产品确认`。
+- 如果不确定应该用哪个状态、标签、优先级、归属项目、里程碑或 issue 边界，先询问 PM，不要自行决定。
+- 除非用户明确说明已经开始做，否则不要新建为 In Progress。
+- 除非是在补录已有工作，否则不要新建为 In Review、Testing 或 Done。
 
-- a Linear issue or comment that reads in PM/product language
-- Linear content written in the determined Linear language
-- an explicit list of product requirements or acceptance details that still need discussion, or `None` when the contract is complete
-- an existing matching Linear issue reused when one exists, instead of creating duplicate product contracts
-- existing Linear metadata applied where available
-- a proposed metadata preset only when existing conventions are absent or weak
-- GitHub engineering issues created only when needed
-- bidirectional links between Linear and GitHub artifacts when both exist
-- product decisions recorded in Linear before implementation proceeds
-- issue body reconciled to the latest accepted product contract, with obsolete wording removed rather than kept as strikethrough
-- a Linear comment in the determined language for every issue-body edit, so the body stays current while the comment thread preserves edit history
-- PRD or durable-doc sync called out when the Linear decision becomes stable product direction
+## Issue 内容标准
 
-## Bundled References
+Tell App 的每个 issue 都应该让开发或 AI 可以主要根据 issue 内容完成工作。除了精细 UI、动效、视觉细节外，不应依赖额外口头解释。
 
-- `references/pm-mode.md` - create PM-language Linear issues from any source.
-- `references/developer-mode.md` - connect Linear product contracts to GitHub engineering work.
-- `references/linear-metadata.md` - discover and apply Linear metadata.
-- `references/preset-taxonomy.md` - portable fallback metadata shape.
-- `references/discussion.md` - comment, push back, split scope, and record decisions.
+每个 issue 必须包含：
+
+- 问题：解决什么用户问题或产品问题。
+- 期望结果：交付后应该变成什么样。
+- 范围：这次包含什么。
+- 边界：明确不包含什么，尤其不要把其他模块的规则写进来。
+- 验收标准：怎样判断完成。
+- 待确认问题：未解决的产品决策；没有则写“无”。
+
+不要把“引用文档”和“文档同步”作为 Tell App issue 的固定栏目。必要来源可以自然写在背景中，但 issue 正文重点应是当前执行合同。
+
+## Issue 边界规则
+
+每个 issue 只描述当前模块需要开发和验收的内容，不把其他模块的业务规则塞进来。
+
+示例：
+
+- 多语言 issue 只写目标语言、系统界面语言、辅助学习语言、语言选择、语言回退、语言显示范围等。
+- 多语言 issue 不写英语学习如何评级、不写题面生成规则、不写练习反馈标准。
+- 练习流程 issue 才写题面、答案、反馈、评级、重试、完成状态等。
+- Onboarding issue 只写首次进入、用户选择、引导路径、进入首页条件，不写后续练习细节。
+- Agent issue 只写 Agent 的目标、输入输出、追问规则、收口标准，不写具体页面布局。
+
+如果一个 issue 开始包含两个不同模块的验收路径，应拆分或建立关联关系。
+
+## 拆分粒度规则
+
+issue 不要太粗，也不要太细。
+
+合适的 issue：
+
+- 对应一个完整的产品能力或交付模块。
+- 可以在一次集中开发中完成。
+- 有单一清晰的验收路径。
+- 可以相对独立测试。
+
+太粗的 issue：
+
+- 包含多个不相关的用户目标。
+- 把产品探索、UI 设计、后端能力、测试都混在一起。
+- 无法用一组清晰验收标准判断完成。
+
+太细的 issue：
+
+- 只是一个按钮、一句文案、一个字段或很小的 UI 调整。
+- 只是执行步骤，不对应明确产品价值。
+- 会导致开发一直在管理任务，而不是交付模块。
+
+如果某些内容更像阶段管理，例如“首次体验闭环”“Story 创建闭环”“练习闭环”“语言与市场适配”“上线基础能力”，优先建议作为 milestone，而不是父 issue。
+
+## 项目和里程碑规则
+
+暂时不主动创建或修改项目、里程碑。
+
+如果用户明确要求使用现有项目或里程碑，则按用户指定执行。
+
+如果不确定 issue 应归属哪个项目或里程碑，先询问 PM。
+
+## 产品确认规则
+
+当 issue 存在以下情况时，使用 `待产品确认`：
+
+- 验收标准不清楚。
+- 范围边界不清楚。
+- 不确定是否属于当前版本。
+- 不确定是否应该拆分。
+- 开发或 AI 发现需求和现有文档、现有 issue、实际实现存在冲突。
+- 没有 PM 决策就无法继续。
+
+PM 确认后，AI 应更新 issue 正文，让正文反映最新执行合同。只有没有其他阻塞性产品问题时，才能移除 `待产品确认`。
+
+## 本地文档同步规则
+
+AI 不能因为 Linear 中出现了新决定就直接修改本地文档。需要先询问 PM。
+
+以下情况必须询问 PM 是否同步本地文档：
+
+- Linear 评论中形成了会改变产品行为的最终决定。
+- 验收标准发生变化。
+- 范围被新增、移除或延后。
+- 数据规则、状态规则、语言规则或 Agent 行为发生变化。
+- 测试发现当前本地产品文档和实际验收结果不一致。
+
+推荐询问方式：
+
+“这个决定会影响本地产品文档。要我同步更新本地文档吗？”
+
+只有 PM 明确同意后，AI 才能更新本地产品文档。
+
+## 工作流程
+
+1. 判断用户是在讨论、创建、更新、检查还是拆分 Linear issue。
+2. 如果只是讨论或检查，不要修改 Linear，除非用户明确要求。
+3. 如果要创建或更新 issue，先检查是否已有相同或高度重叠的 issue。
+4. 如果已有合适 issue，优先更新或评论，不要重复创建。
+5. 判断 issue 边界是否清楚；不清楚时先问 PM。
+6. 按固定标签和状态规则设置标签、状态和优先级。
+7. 项目和里程碑不确定时先问 PM，不主动创建或调整。
+8. 创建或更新 issue 正文，保持正文是当前最新执行合同。
+9. 如果产品问题需要确认，在 Linear 评论中提出，并加 `待产品确认`。
+10. PM 确认后，更新 issue 正文，并在评论中简要说明改了什么、为什么改。
+11. 如果决定影响本地产品文档，先询问 PM 是否同步。
+12. PM 明确同意后，再更新本地产品文档。
+
+## 写入规则
+
+- 只读检查、总结、讨论请求，不修改 Linear，除非用户明确要求。
+- 创建新 issue 前，如果状态、标签、优先级、项目、里程碑或边界不确定，先问 PM。
+- 大幅改写 issue 正文、改变状态、取消 issue、调整重要标签或优先级前，如果用户没有明确授权，先说明建议再执行。
+- 当用户明确指定 issue 和修改内容时，可以直接更新，并汇报改了什么。
+- 不要用过期或冲突的信息静默覆盖 issue 正文。
+- 每次更新 issue 正文后，应添加一条评论，说明更新内容、原因和影响。
+- 不要主动创建或调整 Tell App 的项目和里程碑，除非用户明确要求。
+- 不要在没有 PM 确认的情况下同步本地产品文档。
+
+## 输出要求
+
+使用这个 skill 后，结果应尽量满足：
+
+- Linear issue 或评论使用产品语言，而不是只写执行步骤。
+- issue 正文是当前最新执行合同。
+- issue 有清晰的问题、期望结果、范围、边界、验收标准和待确认问题。
+- 标签、状态、优先级符合 Tell App 规则。
+- 如果存在产品阻塞，明确标记 `待产品确认`。
+- 如果发现需要同步本地文档，先询问 PM。
+- 不创建重复 issue。
+- 不把其他模块的业务规则塞进当前 issue。
+- 不主动创建或调整项目、里程碑。
