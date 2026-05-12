@@ -1,205 +1,244 @@
 ---
 name: linear-workflow
-description: 当需要创建、更新、检查或讨论 Linear issue，把产品文档拆成可执行任务，管理 Linear 标签、状态、优先级、项目归属、问题确认和产品文档同步时使用。
+description: Product-agnostic Linear workflow for creating, updating, inspecting, and discussing product issues, metadata, status, scope, confirmation needs, and durable product-doc sync.
 ---
 
 # Linear Workflow
 
-Linear 是产品执行合同和进度管理层。一个 Linear issue 应该说清楚：要解决什么问题、为什么重要、包含什么、不包含什么、怎样验收、还有哪些产品问题待确认。
+This skill is product agnostic. Keep the default guidance portable across products, teams, and repositories. Do not hard-code a product name, a team's private status model, a fixed label set, or product-specific document paths into this skill. Product-specific rules may appear only as clearly marked examples or as conventions discovered from the active repo, Linear workspace, or explicit user instruction.
 
-对 Tell App 来说，本地产品文档是长期产品真相，Linear 是执行合同和状态流转层。Linear issue 应该足够完整，让开发或 AI 能主要根据 issue 内容完成工作；但 Linear issue 不替代本地产品文档。
+Linear is the product execution contract and progress-management layer. A Linear issue should clearly state what problem is being solved, why it matters, what is in scope, what is out of scope, how the work will be accepted, and which product questions still need a decision.
 
-如果 Linear 中形成了会影响产品行为、范围、验收标准、数据规则、状态规则、语言规则或 Agent 行为的稳定决定，AI 必须先询问 PM 是否同步回本地产品文档，不得自行直接修改本地文档。
+Durable product documents, PRDs, design docs, or repo-owned planning files are long-term product memory when a team uses them. Linear should be complete enough for a developer or AI agent to execute the work, but it does not automatically replace durable docs unless the team explicitly says so.
 
-## 使用场景
+If a Linear discussion creates a stable decision that changes product behavior, scope, acceptance criteria, data rules, status rules, language rules, or agent behavior, ask whether the decision should be synced back to the relevant durable docs. Do not silently edit product docs from a Linear decision unless the user or team workflow explicitly authorizes it.
 
-在以下情况使用这个 skill：
+## Use When
 
-- 用户要求创建、更新、检查或讨论 Linear issue。
-- 本地产品文档、交互文档、聊天讨论、口头决策或截图需要转成 Linear 任务。
-- 开发或 AI 对某个 issue 的范围、验收标准、可行性、顺序或理解提出疑问。
-- 需要设置 Linear 的标签、状态、优先级、负责人、项目、里程碑、父子关系、阻塞关系或关联关系。
-- 需要根据 Linear 中的新决定判断是否同步本地产品文档。
-- 需要把一个过大的需求拆成多个可执行 issue。
+Use this skill when:
 
-## 核心模型
+- The user asks to create, update, inspect, summarize, or discuss Linear issues.
+- Product docs, design docs, chat notes, oral decisions, screenshots, PRDs, branches, PRs, or pasted context need to become Linear work.
+- A developer or AI agent needs to push back on issue scope, acceptance criteria, feasibility, sequencing, or interpretation.
+- Linear metadata such as labels, statuses, priorities, assignees, teams, projects, cycles, milestones, parent-child links, blockers, or related issues should be applied.
+- A Linear decision may need to be reconciled with durable product documentation.
+- A large requirement needs to be split into executable issues.
+- A Linear product issue needs a linked GitHub engineering issue or PR.
 
-- 本地产品文档：长期产品真相，记录稳定的产品规则、交互规则、数据规则和决策。
-- Linear Project：一个阶段性目标，例如 V1 上线。
-- Linear Milestone：项目内的阶段或闭环，例如首次体验闭环、Story 创建闭环、练习闭环、语言与市场适配、上线基础能力。
-- Linear issue：执行合同，描述一个可以开发和验收的产品任务。
-- Linear comment：讨论、提问、决策记录和交接说明。
-- GitHub issue：仅在需要更细的开发执行记录时使用。
-- GitHub PR：开发结果、检查记录和合并记录。
+## Core Model
 
-如果 Linear 和本地产品文档不一致，先确认哪一个是最新结论。不要静默覆盖任何一边。
+- Durable product docs: long-term product memory for stable product rules, interaction rules, data rules, and decisions when the repo or team uses them.
+- Linear project: a larger product or delivery goal.
+- Linear milestone or cycle: a stage, release slice, or planning interval inside a project.
+- Linear issue: the current execution contract for one coherent product or engineering task.
+- Linear comment: discussion, pushback, decision request, decision record, blocker, or handoff note.
+- GitHub issue: optional developer execution record with code anchors, implementation detail, validation commands, and technical risks.
+- GitHub PR: implementation diff, review trail, validation proof, and merge record.
 
-## Tell App 固定标签
+If Linear and durable docs disagree, confirm which source contains the latest accepted decision. Do not silently overwrite either side with stale or conflicting information.
 
-除非用户明确要求新增，否则 Tell App 只使用以下标签：
+## Product-Agnostic Rules
 
-- Feature：新功能。
-- Improvement：已有功能优化。
-- Bug：错误行为或回归问题。
-- Agent：AI / Agent 相关能力或行为。
-- 待产品确认：有产品决策阻塞，或验收标准不清楚。
+- The default workflow must work for any product.
+- Treat explicit user instruction, repo guidance, existing Linear workspace conventions, and existing issue metadata as the source for product-specific behavior.
+- Product-specific label names, status names, milestone names, project names, document paths, and examples must be marked as examples unless they were discovered in the active workspace.
+- Do not convert this skill into a product-specific playbook. If a product needs fixed rules, put them in that product's repo guidance, a dedicated profile, or a clearly labeled example section.
+- When editing this skill, prefer neutral terms such as "the product", "the team", "durable docs", "confirmation label", and "review status" over a specific product name.
 
-不要用临时标签表达项目范围、上线批次或文档同步状态。项目范围优先用 Project / Milestone 管理；文档同步通过询问 PM 处理，不通过标签管理。
+## Language Selection
 
-## Tell App 状态规则
+Write Linear issues and comments in the target repo or workspace language. Determine it in this order:
 
-Tell App 使用以下状态：
+1. Explicit user instruction.
+2. Repo guidance such as `AGENTS.md`, contributor docs, workflow docs, or product docs.
+3. Existing Linear issue body language when updating an issue and no workspace-specific language is defined.
+4. English for new issues with no guidance.
 
-- Backlog：需求已识别，但范围、验收标准或优先级还不够清楚。
-- Todo：需求已经准备好，开发或 AI 可以根据 issue 内容开始做。
-- In Progress：正在开发。
-- In Review：开发已完成到可检查状态，但还没进入产品测试。
-- Testing：可以进入 PM / 产品测试或完整用户流程验证。
-- Done：已验收，没有阻塞问题，并且 PM 已确认不需要再同步本地文档，或需要同步的本地文档已经完成。
-- Canceled：不再需要。
+Linear language may differ from GitHub issue, PR, code, or general repo working language.
 
-Tell App 不使用 Duplicate 作为默认流程状态。发现重复 issue 时，先询问 PM 保留哪一个，再按需要取消或关联。
+## Metadata Discovery
 
-## Issue 创建后的初始状态判断
+Before creating or updating Linear metadata:
 
-创建新 issue 时：
+1. Search for an existing issue with matching source links, title, project, branch, PR, GitHub issue, or product scope.
+2. Inspect existing team labels, statuses, priorities, projects, cycles, milestones, and assignees.
+3. Reuse existing metadata where it fits.
+4. Ask before creating new labels, statuses, projects, or milestones unless the user explicitly asked for that mutation.
+5. If the workspace has no useful conventions, propose a portable preset as a recommendation, then apply it only after the user accepts or the task clearly authorizes it.
 
-- 如果目标、范围、边界、验收标准都清楚，且没有阻塞性产品问题，设为 Todo。
-- 如果需求成立，但范围不清、验收标准不清，或优先级不确定，设为 Backlog。
-- 如果没有 PM 决策就无法合理开发，设为 Backlog，并加 `待产品确认`。
-- 如果不确定应该用哪个状态、标签、优先级、归属项目、里程碑或 issue 边界，先询问 PM，不要自行决定。
-- 除非用户明确说明已经开始做，否则不要新建为 In Progress。
-- 除非是在补录已有工作，否则不要新建为 In Review、Testing 或 Done。
+## Label Rules
 
-## Issue 内容标准
+Labels should describe issue type, ownership, decision state, or workflow routing. Prefer existing workspace labels.
 
-Tell App 的每个 issue 都应该让开发或 AI 可以主要根据 issue 内容完成工作。除了精细 UI、动效、视觉细节外，不应依赖额外口头解释。
+Common portable label categories:
 
-每个 issue 必须包含：
+- Feature: new user-facing or product capability.
+- Improvement: enhancement to existing behavior.
+- Bug: incorrect behavior or regression.
+- Agent or Automation: AI, agent, or automation behavior.
+- Product Decision Required: scope, acceptance, priority, sequencing, or product behavior is blocked on a decision.
 
-- 问题：解决什么用户问题或产品问题。
-- 期望结果：交付后应该变成什么样。
-- 范围：这次包含什么。
-- 边界：明确不包含什么，尤其不要把其他模块的规则写进来。
-- 验收标准：怎样判断完成。
-- 待确认问题：未解决的产品决策；没有则写“无”。
+These names are examples, not fixed defaults. If the workspace uses different names such as `Needs PM`, `Question`, `Design`, or localized labels, use the workspace convention.
 
-不要把“引用文档”和“文档同步”作为 Tell App issue 的固定栏目。必要来源可以自然写在背景中，但 issue 正文重点应是当前执行合同。
+Do not use ad hoc labels for release scope, product area, milestone, or doc-sync state when the workspace already has projects, milestones, cycles, or comments that represent those concepts better.
 
-## Issue 边界规则
+## Status Rules
 
-每个 issue 只描述当前模块需要开发和验收的内容，不把其他模块的业务规则塞进来。
+Use the workspace's existing status flow. If there is no clear convention, recommend a minimal portable flow:
 
-示例：
+- Backlog: need is identified, but scope, acceptance criteria, priority, or timing is not ready.
+- Todo: issue is ready for development or execution.
+- In Progress: work has started.
+- In Review: implementation is ready for engineering, design, or product review.
+- Testing: work is ready for product, QA, or full-flow validation when the workspace separates testing from review.
+- Done: accepted and no known blocking follow-up remains.
+- Canceled: no longer needed.
 
-- 多语言 issue 只写目标语言、系统界面语言、辅助学习语言、语言选择、语言回退、语言显示范围等。
-- 多语言 issue 不写英语学习如何评级、不写题面生成规则、不写练习反馈标准。
-- 练习流程 issue 才写题面、答案、反馈、评级、重试、完成状态等。
-- Onboarding issue 只写首次进入、用户选择、引导路径、进入首页条件，不写后续练习细节。
-- Agent issue 只写 Agent 的目标、输入输出、追问规则、收口标准，不写具体页面布局。
+These status names are examples. Do not assume every workspace has `Testing`, `Duplicate`, or the exact labels above. When duplicate issues are found, ask which issue should remain canonical unless the workspace has an explicit duplicate policy.
 
-如果一个 issue 开始包含两个不同模块的验收路径，应拆分或建立关联关系。
+## Initial Status For New Issues
 
-## 拆分粒度规则
+When creating a new issue:
 
-issue 不要太粗，也不要太细。
+- Use the workspace's default ready state if goals, scope, boundaries, and acceptance criteria are clear.
+- Use the workspace's backlog or discovery state if the need is valid but scope, acceptance criteria, priority, or timing is unclear.
+- Add the workspace's confirmation label or blocker note when product decisions are required before reasonable execution can continue.
+- Ask when status, label, priority, project, milestone, assignee, or issue boundary is unclear.
+- Do not create an issue as in progress unless the user says the work has started or you are backfilling existing work.
+- Do not create an issue as review, testing, or done unless you are backfilling work that is already in that state.
 
-合适的 issue：
+## Issue Body Standard
 
-- 对应一个完整的产品能力或交付模块。
-- 可以在一次集中开发中完成。
-- 有单一清晰的验收路径。
-- 可以相对独立测试。
+Every issue should let a developer or AI agent complete the work primarily from the issue content. Fine UI, motion, visual design, or implementation details may still require linked source material, but the Linear body should contain the current execution contract.
 
-太粗的 issue：
+Each issue should include:
 
-- 包含多个不相关的用户目标。
-- 把产品探索、UI 设计、后端能力、测试都混在一起。
-- 无法用一组清晰验收标准判断完成。
+- Problem: the user or product problem being solved.
+- Desired outcome: what should be true after delivery.
+- Scope: what this issue includes.
+- Boundaries: what this issue explicitly excludes.
+- Acceptance criteria: how completion will be judged.
+- Open questions: unresolved product decisions, or "None" when the contract is complete.
 
-太细的 issue：
+Source links and doc-sync notes are useful when relevant, but they should not replace the execution contract. Keep the issue body current; preserve decision history in comments.
 
-- 只是一个按钮、一句文案、一个字段或很小的 UI 调整。
-- 只是执行步骤，不对应明确产品价值。
-- 会导致开发一直在管理任务，而不是交付模块。
+## Issue Boundary Rules
 
-如果某些内容更像阶段管理，例如“首次体验闭环”“Story 创建闭环”“练习闭环”“语言与市场适配”“上线基础能力”，优先建议作为 milestone，而不是父 issue。
+Each issue should describe one coherent product capability, workflow step, technical task, or decision path. Avoid mixing unrelated modules or acceptance paths into one issue.
 
-## 项目和里程碑规则
+Examples:
 
-暂时不主动创建或修改项目、里程碑。
+- A localization issue can cover target languages, interface language, fallback behavior, and display scope.
+- A localization issue should not also define unrelated scoring, generation, or feedback rules unless those are part of the same acceptance path.
+- A workflow issue can cover inputs, outputs, state transitions, retries, and completion state for that workflow.
+- An onboarding issue can cover first-run entry, user choices, guidance path, and the condition for reaching the main experience.
+- An agent issue can cover agent goal, inputs, outputs, follow-up questions, stop conditions, and handoff behavior without specifying unrelated page layout.
 
-如果用户明确要求使用现有项目或里程碑，则按用户指定执行。
+If one issue starts to contain two independent acceptance paths, recommend splitting it or linking related issues.
 
-如果不确定 issue 应归属哪个项目或里程碑，先询问 PM。
+## Split-Size Rules
 
-## 产品确认规则
+Issues should be neither too broad nor too small.
 
-当 issue 存在以下情况时，使用 `待产品确认`：
+A good issue:
 
-- 验收标准不清楚。
-- 范围边界不清楚。
-- 不确定是否属于当前版本。
-- 不确定是否应该拆分。
-- 开发或 AI 发现需求和现有文档、现有 issue、实际实现存在冲突。
-- 没有 PM 决策就无法继续。
+- Represents one complete product capability, delivery unit, technical task, or decision path.
+- Can be completed in one focused implementation or decision cycle.
+- Has one clear acceptance path.
+- Can be tested or verified relatively independently.
 
-PM 确认后，AI 应更新 issue 正文，让正文反映最新执行合同。只有没有其他阻塞性产品问题时，才能移除 `待产品确认`。
+An issue is too broad when it:
 
-## 本地文档同步规则
+- Contains multiple unrelated user goals.
+- Mixes product exploration, UI design, backend work, rollout, and testing without clear boundaries.
+- Cannot be judged complete with one coherent set of acceptance criteria.
 
-AI 不能因为 Linear 中出现了新决定就直接修改本地文档。需要先询问 PM。
+An issue is too small when it:
 
-以下情况必须询问 PM 是否同步本地文档：
+- Is only one button, one copy tweak, one field, or one tiny UI adjustment without independent product value.
+- Is only an implementation step rather than a product or engineering outcome.
+- Creates more task-management overhead than delivery clarity.
 
-- Linear 评论中形成了会改变产品行为的最终决定。
-- 验收标准发生变化。
-- 范围被新增、移除或延后。
-- 数据规则、状态规则、语言规则或 Agent 行为发生变化。
-- 测试发现当前本地产品文档和实际验收结果不一致。
+If a concept is really phase management, such as "first experience", "content creation", "billing readiness", "launch basics", or "market adaptation", recommend using a project, milestone, cycle, or parent issue according to workspace convention.
 
-推荐询问方式：
+## Project And Milestone Rules
 
-“这个决定会影响本地产品文档。要我同步更新本地文档吗？”
+Use existing projects, milestones, cycles, and parent issues when the user or workspace convention makes the target clear.
 
-只有 PM 明确同意后，AI 才能更新本地产品文档。
+Ask before creating or materially changing projects, milestones, or cycles. These usually affect planning structure across multiple issues.
 
-## 工作流程
+If the correct project or milestone is unclear, ask the product owner or user instead of guessing.
 
-1. 判断用户是在讨论、创建、更新、检查还是拆分 Linear issue。
-2. 如果只是讨论或检查，不要修改 Linear，除非用户明确要求。
-3. 如果要创建或更新 issue，先检查是否已有相同或高度重叠的 issue。
-4. 如果已有合适 issue，优先更新或评论，不要重复创建。
-5. 判断 issue 边界是否清楚；不清楚时先问 PM。
-6. 按固定标签和状态规则设置标签、状态和优先级。
-7. 项目和里程碑不确定时先问 PM，不主动创建或调整。
-8. 创建或更新 issue 正文，保持正文是当前最新执行合同。
-9. 如果产品问题需要确认，在 Linear 评论中提出，并加 `待产品确认`。
-10. PM 确认后，更新 issue 正文，并在评论中简要说明改了什么、为什么改。
-11. 如果决定影响本地产品文档，先询问 PM 是否同步。
-12. PM 明确同意后，再更新本地产品文档。
+## Product Confirmation Rules
 
-## 写入规则
+Use the workspace's confirmation label, blocker status, or explicit comment when an issue has unresolved product decisions. Examples include:
 
-- 只读检查、总结、讨论请求，不修改 Linear，除非用户明确要求。
-- 创建新 issue 前，如果状态、标签、优先级、项目、里程碑或边界不确定，先问 PM。
-- 大幅改写 issue 正文、改变状态、取消 issue、调整重要标签或优先级前，如果用户没有明确授权，先说明建议再执行。
-- 当用户明确指定 issue 和修改内容时，可以直接更新，并汇报改了什么。
-- 不要用过期或冲突的信息静默覆盖 issue 正文。
-- 每次更新 issue 正文后，应添加一条评论，说明更新内容、原因和影响。
-- 不要主动创建或调整 Tell App 的项目和里程碑，除非用户明确要求。
-- 不要在没有 PM 确认的情况下同步本地产品文档。
+- Acceptance criteria are unclear.
+- Scope boundaries are unclear.
+- Priority, release inclusion, or sequencing is unclear.
+- It is unclear whether the issue should be split.
+- Requirements conflict with existing docs, existing issues, or actual implementation.
+- Execution cannot continue without a product decision.
 
-## 输出要求
+After the decision is made, update the issue body so it reflects the latest execution contract. Remove the confirmation label or blocker state only when no blocking product question remains.
 
-使用这个 skill 后，结果应尽量满足：
+## Durable Doc Sync Rules
 
-- Linear issue 或评论使用产品语言，而不是只写执行步骤。
-- issue 正文是当前最新执行合同。
-- issue 有清晰的问题、期望结果、范围、边界、验收标准和待确认问题。
-- 标签、状态、优先级符合 Tell App 规则。
-- 如果存在产品阻塞，明确标记 `待产品确认`。
-- 如果发现需要同步本地文档，先询问 PM。
-- 不创建重复 issue。
-- 不把其他模块的业务规则塞进当前 issue。
-- 不主动创建或调整项目、里程碑。
+Do not assume Linear decisions automatically update durable product docs. Ask when a stable Linear decision changes product memory.
+
+Ask whether to sync durable docs when:
+
+- A Linear comment records a final decision that changes product behavior.
+- Acceptance criteria change.
+- Scope is added, removed, or deferred.
+- Data rules, status rules, language rules, or agent behavior change.
+- Testing reveals that durable docs and accepted behavior disagree.
+
+Recommended wording:
+
+"This decision affects durable product documentation. Should I update the relevant docs as well?"
+
+Only update durable docs after explicit authorization or when repo guidance says this sync is automatic.
+
+## Workflow
+
+1. Identify whether the user is discussing, creating, updating, inspecting, summarizing, or splitting Linear work.
+2. If the request is read-only, do not mutate Linear unless the user explicitly asks for an update.
+3. Inspect available source material: docs, issue, discussion, branch, PR, repo guidance, or pasted context.
+4. Determine the language for Linear content.
+5. Search for an existing matching issue. Reuse or update an existing contract when one matches; create a new issue only when no matching contract exists.
+6. Discover workspace metadata before assigning labels, statuses, priorities, projects, milestones, cycles, or assignees.
+7. Judge whether issue boundaries are clear. Ask or recommend a split when they are not.
+8. Apply existing metadata conventions, or recommend a portable fallback when conventions are absent.
+9. Create or update the issue body so it is the current execution contract.
+10. Use Linear comments for product-contract discussion, decision requests, blockers, and summaries of body changes.
+11. If product decisions are required, mark them with the workspace's confirmation mechanism.
+12. After a decision, reconcile the issue body with the latest accepted contract and keep historical context in comments.
+13. If a decision affects durable product docs, ask whether to sync the docs before editing them.
+14. If developer execution needs a GitHub issue or PR link, create or update that artifact and link it back to Linear.
+
+## Write Policy
+
+- Read-only inspect, audit, summarize, or discuss requests should not mutate Linear unless the user explicitly asks for an update.
+- Before creating a new issue, confirm the target team when more than one team fits or no repo/workspace default is explicit.
+- Before creating new labels, statuses, projects, milestones, or cycles, recommend the change and ask unless the user explicitly requested it.
+- Before major body rewrites, status changes, duplicate closure, or metadata changes that route ownership or priority, draft the intended update and apply it only when authorized by the user request or Linear discussion.
+- When the target issue and requested edit are explicit, apply the update directly, then report what changed.
+- Never silently overwrite an issue body from stale or conflicting source material. If sources disagree, comment with the decision needed or ask before rewriting the contract.
+- Each time you edit the issue body, leave a Linear comment in the determined language summarizing what changed and why, with links to the decision or source material when available.
+- Do not sync durable product docs without explicit authorization unless repo guidance says the sync is automatic.
+
+## Output
+
+Successful use of this skill should leave:
+
+- Linear issue or comment content written in product language rather than only implementation steps.
+- Content written in the determined Linear language.
+- A current issue body that states the execution contract.
+- Clear problem, desired outcome, scope, boundaries, acceptance criteria, and open questions.
+- Existing workspace labels, statuses, priorities, assignees, projects, milestones, and cycles reused where they fit.
+- Product blockers marked with the workspace's confirmation mechanism.
+- Duplicate issues avoided or resolved through the workspace's canonicalization process.
+- Related product, GitHub, design, or documentation artifacts linked when relevant.
+- Durable-doc sync called out when a stable Linear decision changes long-term product memory.
+- No hard-coded product-specific rule introduced into the product-agnostic skill unless it is clearly marked as an example.
