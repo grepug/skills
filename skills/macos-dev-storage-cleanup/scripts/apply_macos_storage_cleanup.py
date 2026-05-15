@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -80,7 +79,11 @@ def allowed_roots_for_item(item: dict[str, Any], extra_roots: list[Path]) -> lis
         "xcode-derived-data": [home / "Library" / "Developer" / "Xcode" / "DerivedData"],
         "xcode-archives": [home / "Library" / "Developer" / "Xcode" / "Archives"],
         "xcode-devicesupport": [home / "Library" / "Developer" / "Xcode" / "iOS DeviceSupport"],
-        "xcode-cache": [home / "Library" / "Caches" / "com.apple.dt.Xcode", home / "Library" / "Developer" / "Xcode"],
+        "xcode-cache": [
+            home / "Library" / "Caches" / "com.apple.dt.Xcode",
+            home / "Library" / "Developer" / "Xcode" / "Products",
+            home / "Library" / "Developer" / "Xcode" / "DocumentationCache",
+        ],
         "simulator-device": [home / "Library" / "Developer" / "CoreSimulator" / "Devices"],
         "simulator-runtime": [home / "Library" / "Developer" / "CoreSimulator" / "Profiles" / "Runtimes"],
         "coredevice-delta": [home / "Library" / "Developer" / "CoreDevice" / "AppInstallationBinaryDeltas"],
@@ -183,7 +186,11 @@ def process_item(item: dict[str, Any], args: argparse.Namespace, log_path: Path)
             return ("skipped", 0)
         size = int(item.get("size_bytes") or 0)
         if args.apply:
-            remove_path(path)
+            try:
+                remove_path(path)
+            except OSError as exc:
+                write_log(log_path, f"FAILED {item.get('id')}: {path} ({exc})")
+                return ("failed", 0)
             write_log(log_path, f"DELETE {item.get('id')}: {path} ({size} bytes)")
             return ("deleted", size)
         write_log(log_path, f"DRY-RUN {item.get('id')}: would delete {path} ({size} bytes)")

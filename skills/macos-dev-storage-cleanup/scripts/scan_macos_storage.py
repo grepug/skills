@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 import plistlib
+import re
 import shutil
 import subprocess
 import sys
@@ -179,7 +180,7 @@ def scan_xcode(items: list[CleanupItem], home: Path, min_size_bytes: int, latest
         items,
         xcode_root / "DerivedData",
         "xcode-derived-data",
-        "regenerateable",
+        "regeneratable",
         min_size_bytes,
         "Xcode can rebuild DerivedData for selected projects",
     )
@@ -208,7 +209,7 @@ def scan_xcode(items: list[CleanupItem], home: Path, min_size_bytes: int, latest
             items,
             "xcode-cache",
             cache_root,
-            "regenerateable",
+            "regeneratable",
             min_size_bytes=min_size_bytes,
             reason="Xcode cache data can be regenerated",
         )
@@ -354,7 +355,7 @@ def scan_coredevice(items: list[CleanupItem], home: Path, min_size_bytes: int) -
         items,
         home / "Library" / "Developer" / "CoreDevice" / "AppInstallationBinaryDeltas",
         "coredevice-delta",
-        "regenerateable",
+        "regeneratable",
         min_size_bytes,
         "CoreDevice app installation binary deltas are rebuildable transfer caches",
     )
@@ -396,7 +397,7 @@ def scan_project_artifacts(items: list[CleanupItem], roots: list[Path], min_size
             items,
             "developer-artifact",
             artifact,
-            "regenerateable",
+            "regeneratable",
             min_size_bytes=min_size_bytes,
             reason="selected rebuildable project artifact directory can be regenerated",
             metadata={"allowed_root": str(artifact.parent.resolve()), "artifact_name": artifact.name},
@@ -508,7 +509,7 @@ def scan_vscode(items: list[CleanupItem], home: Path, min_size_bytes: int) -> No
             items,
             "vscode-cache",
             code_root / cache_name,
-            "regenerateable",
+            "regeneratable",
             min_size_bytes=min_size_bytes,
             reason="VS Code cache data can be regenerated",
         )
@@ -520,7 +521,7 @@ def classify_wechat_path(path: Path) -> tuple[str, str, bool, str]:
     if "db_storage" in lowered_parts or "database" in path_text or "message.db" in path_text:
         return ("wechat-database", "leave-alone", False, "WeChat message and account databases are report-only")
     if "caches" in lowered_parts or "cache" in path_text:
-        return ("wechat-cache", "regenerateable", True, "WeChat cache data can be regenerated")
+        return ("wechat-cache", "regeneratable", True, "WeChat cache data can be regenerated")
     return ("wechat-media", "review-required", True, "WeChat media may be user-owned and should be explicitly selected")
 
 
@@ -561,7 +562,7 @@ def scan_common_caches(items: list[CleanupItem], home: Path, min_size_bytes: int
             items,
             "common-cache",
             cache_path,
-            "regenerateable",
+            "regeneratable",
             min_size_bytes=min_size_bytes,
             reason="developer cache data can be regenerated",
         )
@@ -573,10 +574,9 @@ def parse_tmutil_snapshots(output: str) -> list[str]:
         line = raw_line.strip()
         if not line:
             continue
-        if line.startswith("com.apple.TimeMachine."):
-            snapshots.append(line.removeprefix("com.apple.TimeMachine."))
-        elif line[0].isdigit():
-            snapshots.append(line)
+        match = re.search(r"(?:com\.apple\.TimeMachine\.)?(\d{4}-\d{2}-\d{2}-\d{6})(?:\.local)?\b", line)
+        if match:
+            snapshots.append(match.group(1))
     return snapshots
 
 

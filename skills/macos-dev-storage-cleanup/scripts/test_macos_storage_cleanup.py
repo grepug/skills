@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import subprocess
 import sys
 import tempfile
-import time
 from pathlib import Path
+from types import SimpleNamespace
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -58,8 +59,9 @@ def test_keep_latest_archive_grouping() -> None:
         older = root / "Project" / "iOS" / "archives" / "Old.xcarchive"
         newer = root / "Project" / "iOS" / "archives" / "New.xcarchive"
         write_file(older / "Info.plist")
-        time.sleep(0.01)
         write_file(newer / "Info.plist")
+        os.utime(older, (1_700_000_000, 1_700_000_000))
+        os.utime(newer, (1_700_000_100, 1_700_000_100))
 
         archives = scan.find_custom_archives([root])
         latest = scan.latest_archive_by_parent(archives)
@@ -74,7 +76,7 @@ def test_wechat_classification_keeps_databases_report_only() -> None:
     media_category, media_risk, media_eligible, _ = scan.classify_wechat_path(Path("/Users/me/xwechat_files/File/report.pdf"))
 
     assert (db_category, db_risk, db_eligible) == ("wechat-database", "leave-alone", False)
-    assert (cache_category, cache_risk, cache_eligible) == ("wechat-cache", "regenerateable", True)
+    assert (cache_category, cache_risk, cache_eligible) == ("wechat-cache", "regeneratable", True)
     assert (media_category, media_risk, media_eligible) == ("wechat-media", "review-required", True)
 
 
@@ -82,9 +84,9 @@ def test_time_machine_snapshot_parsing() -> None:
     output = """
 Snapshots for disk /:
 com.apple.TimeMachine.2026-05-15-123456.local
-2026-05-16-010203.local
+2026-05-16-010203.local (mounted)
 """
-    assert scan.parse_tmutil_snapshots(output) == ["2026-05-15-123456.local", "2026-05-16-010203.local"]
+    assert scan.parse_tmutil_snapshots(output) == ["2026-05-15-123456", "2026-05-16-010203"]
 
 
 def test_simctl_runtime_parsing() -> None:
@@ -138,7 +140,7 @@ def test_apply_defaults_to_dry_run() -> None:
                 {
                     "id": "developer-artifact:test",
                     "category": "developer-artifact",
-                    "risk": "regenerateable",
+                    "risk": "regeneratable",
                     "action": "delete-path",
                     "eligible": True,
                     "reason": "fixture",
@@ -179,7 +181,7 @@ def test_apply_refuses_unallowlisted_path() -> None:
                 {
                     "id": "developer-artifact:outside",
                     "category": "developer-artifact",
-                    "risk": "regenerateable",
+                    "risk": "regeneratable",
                     "action": "delete-path",
                     "eligible": True,
                     "reason": "fixture",
@@ -208,7 +210,7 @@ def test_apply_deletes_with_explicit_allow_path() -> None:
                 {
                     "id": "developer-artifact:allowed",
                     "category": "developer-artifact",
-                    "risk": "regenerateable",
+                    "risk": "regeneratable",
                     "action": "delete-path",
                     "eligible": True,
                     "reason": "fixture",
@@ -239,6 +241,39 @@ def test_apply_deletes_with_explicit_allow_path() -> None:
         assert not target.exists()
 
 
+def test_apply_path_delete_failure_is_per_item_failure() -> None:
+    with tempfile.TemporaryDirectory() as raw:
+        root = Path(raw)
+        target = root / "project" / ".build"
+        write_file(target / "artifact.o", 16)
+        log_path = root / "apply.log"
+        item = {
+            "id": "developer-artifact:failure",
+            "category": "developer-artifact",
+            "risk": "regeneratable",
+            "action": "delete-path",
+            "eligible": True,
+            "reason": "fixture",
+            "size_bytes": 16,
+            "path": str(target),
+            "target": None,
+            "metadata": {"allowed_root": str(target.parent)},
+        }
+        original_remove_path = apply_cleanup.remove_path
+        apply_cleanup.remove_path = lambda _path: (_ for _ in ()).throw(OSError("permission denied"))
+        try:
+            status, size = apply_cleanup.process_item(
+                item,
+                SimpleNamespace(apply=True, allow_path=[], delete_latest_archives=False),
+                log_path,
+            )
+        finally:
+            apply_cleanup.remove_path = original_remove_path
+
+        assert (status, size) == ("failed", 0)
+        assert "FAILED developer-artifact:failure" in log_path.read_text(encoding="utf-8")
+
+
 def run_tests() -> None:
     tests = [
         test_classifies_project_artifacts,
@@ -251,6 +286,7 @@ def run_tests() -> None:
         test_apply_requires_selection_when_applying,
         test_apply_refuses_unallowlisted_path,
         test_apply_deletes_with_explicit_allow_path,
+        test_apply_path_delete_failure_is_per_item_failure,
     ]
     for test in tests:
         test()

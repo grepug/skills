@@ -48,7 +48,7 @@ The default posture is read-first and plan-driven. Measure actual size before de
    ```
 
 3. Review the size-ordered output and classify cleanup items:
-   - `regenerateable`: safe to recreate or re-download, such as build artifacts and caches
+   - `regeneratable`: safe to recreate or re-download, such as build artifacts and caches
    - `review-required`: user-owned, app-owned, tool-owned, or high-regeneration-cost data that needs explicit selection
    - `leave-alone`: reported for awareness only
 4. Present one concrete cleanup plan before deleting anything. Use consistent wording: call each selected target a `cleanup item`.
