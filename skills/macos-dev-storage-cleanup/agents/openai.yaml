@@ -1,0 +1,4 @@
+interface:
+  display_name: "macOS Dev Storage Cleanup"
+  short_description: "Measure and safely clean macOS developer storage"
+  default_prompt: "Use $macos-dev-storage-cleanup to scan reclaimable macOS developer storage, build a cleanup plan, apply only approved cleanup items, and verify final disk space."
