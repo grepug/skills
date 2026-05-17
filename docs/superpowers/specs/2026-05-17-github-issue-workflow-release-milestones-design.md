@@ -45,7 +45,7 @@ Normalize version-like names for comparison while preserving their original disp
 
 The implementation should support numeric dot-separated release versions with an optional leading `v`. Names that include non-version suffixes such as `v1.2-beta`, dates such as `2026-05`, or arbitrary labels such as `Q2` are not release milestones for this rule.
 
-When comparing different version depths, compare missing segments as zero for ordering. For example, `v1`, `v1.0`, and `v1.0.0` sort equivalently. If two open milestones normalize to the same version, prefer the milestone whose spelling best matches the repo's dominant style, then prefer the most recently updated milestone.
+When comparing different version depths, compare missing segments as zero for ordering. For example, `v1`, `v1.0`, and `v1.0.0` sort equivalently. If two open milestones normalize to the same version, choose the one that matches the deterministic style rule below, then choose the milestone with the latest GitHub `updatedAt` value.
 
 ## Selection Rule
 
@@ -61,18 +61,18 @@ When creating or updating an execution issue:
 5. If no git tag versions exist:
    - if open release milestones exist, select the lowest open release milestone
    - if no open milestones exist, create or use the first milestone using repo style, defaulting to `v1`
-6. Use the existing due-date milestone rule only when there are no version-like git tags and no version-like open milestones, but non-version open milestones exist.
+6. Use the existing due-date milestone rule only when one of these is true:
+   - there are no version-like git tags and no version-like open milestones, but non-version open milestones exist
+   - repo-local instructions explicitly say GitHub milestones are sprint, quarter, project, or other non-version planning buckets
 7. When opening or updating a PR, inherit the milestone from the linked issue instead of selecting independently.
 
 ## First Milestone Style
 
-The first milestone should preserve existing repo style when there is a signal:
+The first milestone should preserve existing repo style with deterministic precedence:
 
-- if existing tags use a leading `v`, prefer `v1`
-- if existing tags omit `v`, prefer `1`
-- if existing milestones use a leading `v`, prefer `v1`
-- if existing milestones omit `v`, prefer `1`
-- if there are no tags and no milestones, default to `v1`
+1. If version-like git tags exist, use the leading-`v` style of the greatest git tag version. If several tags normalize to that same greatest version, prefer the tag spelling with a leading `v`, then lexical order.
+2. If no version-like git tags exist but version-like milestones exist, use the leading-`v` style of the lowest open release milestone. If several milestones normalize to that same lowest version, prefer the milestone with the latest GitHub `updatedAt` value, then lexical order.
+3. If there are no version-like tags and no version-like milestones, default to `v1`.
 
 This style preservation applies only when no release milestone has already been selected. The workflow should never rename an existing milestone just to match style.
 
@@ -88,6 +88,7 @@ This style preservation applies only when no release milestone has already been 
 | `v1.2.0` | none | block and ask | workflow cannot infer patch, minor, or major |
 | `1.2.0` | `1.3`, `2` | use `1.3` | preserves no-`v` existing style by using existing milestone text |
 | `v1.2.0` | non-version milestone with nearest due date | block and ask | version tags show release planning, but no greater release milestone exists |
+| `v1.2.0` plus repo docs say milestones are sprint buckets | non-version milestone with nearest due date | use due-date fallback | repo-local instructions override release milestone inference |
 | none | non-version milestone with nearest due date | use due-date fallback | no version-like release planning signal exists |
 
 ## Script Support
@@ -116,7 +117,7 @@ The helper should support at least two behaviors:
    Example:
 
    ```text
-   Blocked: issue milestone v1.2 is not a planned release milestone.
+   Blocked: issue milestone v1.2 does not match the selected release milestone.
    Latest released tag: v1.2.0
    Expected milestone: v1.3
    ```
@@ -159,7 +160,8 @@ Update references only if they describe milestone selection or validation. The c
 
 The helper should fail clearly when:
 
-- `gh` cannot fetch tags, milestones, or issue metadata
+- git tags cannot be fetched
+- GitHub milestones or issue metadata cannot be fetched
 - the repo has git tag versions but no greater open release milestone
 - the supplied issue milestone does not match the selected release milestone
 - GitHub mutation was requested but the caller lacks permission
