@@ -7,7 +7,7 @@ Topic: Refine milestone selection in `github-issue-workflow` so release-version 
 
 Update `github-issue-workflow` so milestone selection treats version-like GitHub milestones as release milestones. Git tags represent released versions. Open version-like milestones greater than the greatest released tag represent planned release buckets. The workflow should select the lowest planned release milestone, because that is the next known release target.
 
-The workflow must not guess whether the next release is patch, minor, or major when git tags exist but no greater open milestone exists. In that case it should block and ask the user or maintainer to choose or create the next release milestone.
+The workflow must not guess whether the next release is patch, minor, or major when git tags exist but no greater open milestone exists. In that case it should block and ask the user or maintainer to choose or create the next release milestone, unless repo-local instructions explicitly define GitHub milestones as non-version planning buckets.
 
 ## Goals
 
@@ -57,7 +57,7 @@ When creating or updating an execution issue:
 4. If git tag versions exist:
    - find open release milestones greater than the greatest git tag version
    - select the lowest such milestone
-   - if none exist, block and ask the user or maintainer to choose or create the next release milestone
+   - if none exist and no explicit non-version milestone instruction applies, block and ask the user or maintainer to choose or create the next release milestone
 5. If no git tag versions exist:
    - if open release milestones exist, select the lowest open release milestone
    - if no open milestones exist, create or use the first milestone using repo style, defaulting to `v1`
@@ -162,7 +162,7 @@ The helper should fail clearly when:
 
 - git tags cannot be fetched
 - GitHub milestones or issue metadata cannot be fetched
-- the repo has git tag versions but no greater open release milestone
+- the repo has git tag versions but no greater open release milestone and no explicit non-version milestone instruction
 - the supplied issue milestone does not match the selected release milestone
 - GitHub mutation was requested but the caller lacks permission
 
