@@ -183,7 +183,7 @@ Add focused tests for pure milestone selection logic without requiring live GitH
 - latest tag with no milestones blocks
 - existing no-`v` style is preserved for first milestone selection
 - version-equivalent milestones use style and updated-time tie-breaks
-- non-version milestones fall back to due date only when no version-like tags or milestones exist
+- non-version milestones fall back to due date when no version-like tags or milestones exist, or when repo-local instructions explicitly define GitHub milestones as non-version planning buckets
 
 If the helper shells out to `gh`, isolate GitHub command execution so tests can use fixture JSON instead of making network calls.
 
