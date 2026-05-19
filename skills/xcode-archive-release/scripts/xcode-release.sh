@@ -54,7 +54,9 @@ Optional:
                                 ipa-server-usage skill path
   --archive-path <path>         Reuse an existing .xcarchive instead of bumping
                                 project files and archiving
+                                Cannot be combined with --ipa-path
   --ipa-path <path>             Reuse an existing .ipa for test-ipa upload only
+                                Cannot be combined with --archive-path
   --project-name <name>         Project/app name for ipa-server metadata.
                                 Falls back to artifact metadata or project name.
   --bundle-id <id>              Bundle identifier override for ipa-server upload
@@ -266,6 +268,10 @@ fi
 
 if [[ -n "$IPA_PATH" && "$UPLOAD_MODE" != "test-ipa" ]]; then
   err "--ipa-path can only be used with --upload-mode test-ipa"
+fi
+
+if [[ -n "$ARCHIVE_PATH_OVERRIDE" && -n "$IPA_PATH" ]]; then
+  err "--archive-path and --ipa-path cannot be combined. Use --archive-path to export from an archive, or --ipa-path to upload an existing IPA."
 fi
 
 if [[ -n "$IPA_PATH" && $FORCE -eq 1 ]]; then
@@ -583,10 +589,17 @@ run_preflight() {
     log "  ✗ Cannot write to output dir: $archive_parent"; ok=0
   fi
 
+  local ready_action="archive"
+  if [[ -n "$IPA_PATH" ]]; then
+    ready_action="upload existing IPA"
+  elif [[ -n "$ARCHIVE_PATH_OVERRIDE" ]]; then
+    ready_action="export/upload existing archive"
+  fi
+
   if [[ $ok -eq 1 ]]; then
-    log "Preflight passed. Ready to archive."
+    log "Preflight passed. Ready to $ready_action."
   else
-    log "Preflight FAILED. Fix the issues above before archiving."
+    log "Preflight FAILED. Fix the issues above before continuing."
     exit 1
   fi
 }
@@ -610,8 +623,6 @@ EXPORT_PLIST="${EXPORT_PLIST:-$DEFAULT_PLIST}"
 DEFAULT_IPA_SERVER_HELPER="${SCRIPT_DIR}/../../ipa-server-usage/scripts/ipa_server.py"
 IPA_SERVER_HELPER="${IPA_SERVER_HELPER:-$DEFAULT_IPA_SERVER_HELPER}"
 
-[[ -f "$EXPORT_PLIST" ]] || err "ExportOptions.plist not found: $EXPORT_PLIST"
-
 plist_value() {
   local plist="$1"
   local key="$2"
@@ -634,6 +645,10 @@ absolutize_existing_dir() {
 
 if [[ -n "$TEST_IPA_EXPORT_PLIST" ]]; then
   TEST_IPA_EXPORT_PLIST="$(absolutize_existing_file "$TEST_IPA_EXPORT_PLIST")"
+fi
+
+if [[ -z "$IPA_PATH" ]]; then
+  [[ -f "$EXPORT_PLIST" ]] || err "ExportOptions.plist not found: $EXPORT_PLIST"
 fi
 
 apply_metadata_if_missing() {

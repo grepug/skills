@@ -154,9 +154,9 @@ For ipa-server OTA installs, the IPA must be signed for direct installation, not
 
 ### Existing artifacts
 
-Use `--archive-path /path/App.xcarchive` to reuse an existing archive for `testflight`, `test-ipa`, or `both`. Existing archive mode never bumps project files and never infers the next build from archive history. It does not require `--project` or `--scheme` unless `--tag-existing-artifact` is used. Metadata is read from the archive and can be overridden with `--project-name`, `--version`, `--build`, or `--bundle-id`. For `test-ipa`/`both`, the archive is exported with the direct-install test IPA method.
+Use `--archive-path /path/App.xcarchive` to reuse an existing archive for `testflight`, `test-ipa`, or `both`. Existing archive mode never bumps project files and never infers the next build from archive history. It does not require `--project` or `--scheme` unless `--tag-existing-artifact` is used. Metadata is read from the archive and can be overridden with `--project-name`, `--version`, `--build`, or `--bundle-id`. For `test-ipa`/`both`, the archive is exported with the direct-install test IPA method. `--archive-path` cannot be combined with `--ipa-path`; choose archive reuse when the helper still needs to export an IPA.
 
-Use `--ipa-path /path/App.ipa` only with `--upload-mode test-ipa`. It does not require `--project` or `--scheme`. The script reads project name, version/build, and bundle ID from `Payload/*.app/Info.plist` when possible, accepts explicit overrides, and uploads the IPA without archiving or exporting. The caller is responsible for ensuring that an existing IPA is signed for direct OTA installation.
+Use `--ipa-path /path/App.ipa` only with `--upload-mode test-ipa`. It does not require `--project` or `--scheme`. The script reads project name, version/build, and bundle ID from `Payload/*.app/Info.plist` when possible, accepts explicit overrides, and uploads the IPA without archiving or exporting. The caller is responsible for ensuring that an existing IPA is signed for direct OTA installation. `--ipa-path` cannot be combined with `--archive-path`, `--force`, `--test-ipa-export-method`, or `--test-ipa-export-plist`; upload an existing IPA only when no export step is needed.
 
 Do not upload App Store Connect/TestFlight export IPAs to ipa-server. iOS OTA installs via `itms-services` need direct-install signing; use `--archive-path` so the script exports a `development` IPA by default, or provide an existing IPA that was exported with `development`, `ad-hoc`, or `enterprise` signing.
 
@@ -281,6 +281,7 @@ Each run has its own versioned folder, and each platform variant gets its own ar
 | `Missing ipa-server URL`                                               | Pass `--ipa-server https://...` or set `IPA_SERVER_URL`                                                                                                        |
 | `ipa-server helper not found`                                          | Install the `ipa-server-usage` skill, pass `--ipa-server-helper`, or set `IPA_SERVER_HELPER`                                                                   |
 | `--ipa-path can only be used with --upload-mode test-ipa`              | Use an archive for TestFlight uploads, or switch the mode to `test-ipa`                                                                                        |
+| `--archive-path and --ipa-path cannot be combined`                     | Use `--archive-path` when the helper should export from an archive, or `--ipa-path` when uploading an existing IPA directly                                    |
 | `--test-ipa-export-method cannot be combined with --ipa-path`          | `--ipa-path` uploads an already exported IPA; re-export from `.xcarchive` when you need a different signing method                                             |
 | `Test IPA ExportOptions.plist must use method development...`          | The test IPA export plist is using an App Store/TestFlight method; use `development`, `ad-hoc`, or `enterprise`                                               |
 | `Could not resolve project name`                                       | Pass `--project-name`, pass `--project`, or use an archive/IPA with readable app name metadata                                                                |
@@ -297,7 +298,7 @@ Each run has its own versioned folder, and each platform variant gets its own ar
 
 ## ExportOptions Customization
 
-The bundled plist (`assets/ExportOptions-AppStore.plist`) works for standard App Store uploads. To customize (e.g. add `teamID`, `signingStyle`, or `iCloudContainerEnvironment`), copy it to the project folder and pass `--export-plist`:
+The bundled plist (`assets/ExportOptions-AppStore.plist`) works for standard App Store uploads. To customize (e.g. add `teamID`, `signingStyle`, or `iCloudContainerEnvironment`), copy it to the project folder and pass `--export-plist`. This plist is required only when the helper exports from a new or existing archive; `--ipa-path` uploads an already exported IPA and ignores App Store export settings.
 
 ```bash
 cp path/to/skills/xcode-archive-release/assets/ExportOptions-AppStore.plist ./ExportOptions.plist
