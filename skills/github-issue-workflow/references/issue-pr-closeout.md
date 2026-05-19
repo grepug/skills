@@ -17,11 +17,21 @@ When the user asks to merge, re-audit the live PR and all issues that the PR wil
 5. Re-read the issue body after implementation, not before it.
 6. Re-read the canonical plan comment and reconcile every implementation checkbox against shipped code.
 7. Treat unresolved implementation checkboxes as blockers for PR readiness.
-8. Generate the PR body from the linked issue instead of writing it from memory.
-9. Open the PR automatically once the issue is fully implemented and the closeout audit passes.
-10. Before merge, re-read the current PR body and treat unchecked PR checklist items as merge blockers.
-11. Before merge, re-audit every additional issue the PR will close and treat their unresolved checklist state as merge blockers.
-12. If the merge audit fails, report the blockers and continue the work instead of merging.
+8. For source-changing PRs, use `inline-doc-governance` to audit changed repo-owned source files before opening or updating the PR.
+9. Generate the PR body from the linked issue instead of writing it from memory.
+10. Open the PR automatically once the issue is fully implemented and the closeout audit passes.
+11. Before merge, re-read the current PR body and treat unchecked PR checklist items as merge blockers.
+12. Before merge, re-run or verify `inline-doc-governance` if new commits changed repo-owned source files.
+13. Before merge, re-audit every additional issue the PR will close and treat their unresolved checklist state as merge blockers.
+14. If the merge audit fails, report the blockers and continue the work instead of merging.
+
+## Inline documentation audit
+
+For PRs that change repo-owned source files, load the `inline-doc-governance` skill as part of PR closeout. Run its deterministic audit against the changed source paths, using the target repo's local policy when one exists and the `public` policy otherwise. Then do the semantic pass for comments the script cannot prove: file headers, public or cross-boundary type docs, side effects, fallback behavior, provider quirks, and comments near changed code.
+
+Keep comments synchronized with behavior in the same PR. Update comments whose contract, side effect, ownership, fallback, or edge case changed; delete comments that no longer match the code; and avoid adding comments that only narrate syntax.
+
+Do not edit generated, vendored, test, or build-output files while satisfying the audit. If the audit reports generated code, update the exclusion rules or narrow the audited path set instead of patching generated output.
 
 ## Local workflow
 
@@ -38,6 +48,8 @@ Render the PR body without creating the PR:
 ```bash
 python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py pr-body \
   --issue 123 \
+  --inline-doc-audit ran \
+  --inline-doc-audit-note "inline-doc-governance audit passed for changed source paths" \
   --summary "Implement issue-to-PR closeout gate in the skill" \
   --summary "Add a local helper script for audit and PR creation"
 ```
@@ -48,6 +60,8 @@ Create or update the PR after the audit passes:
 python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py open-pr \
   --issue 123 \
   --base main \
+  --inline-doc-audit ran \
+  --inline-doc-audit-note "inline-doc-governance audit passed for changed source paths" \
   --summary "Implement issue-to-PR closeout gate in the skill" \
   --summary "Add a local helper script for audit and PR creation" \
   --validation "python3 scripts/quick_validate_skill.py skills/github-issue-workflow"
@@ -71,10 +85,13 @@ python3 skills/github-issue-workflow/scripts/issue_pr_closeout.py merge-pr \
 - If the PR is still a draft, the merge audit exits non-zero.
 - If related issues that the PR closes still have unchecked issue or blocking plan items, the merge audit exits non-zero.
 - Open items under `External Setup Dependencies` remain visible in the audit output but do not block PR creation by themselves.
+- The helper requires `--inline-doc-audit ran|skipped` and `--inline-doc-audit-note` when rendering or opening a PR.
+- The merge audit exits non-zero when the PR body does not include an explicit checked inline-doc audit status.
 - If the current branch already has a PR, the helper updates that PR instead of creating a duplicate.
 - If the current branch is not pushed yet, the helper exits non-zero and tells you to push the branch first.
 - The helper carries the issue milestone into the PR when one exists.
 - The merge audit prints blockers grouped by source so the agent can continue work on those items instead of guessing.
+- The inline-doc audit remains skill-driven; the helper does not infer repository source ownership or semantic comment quality.
 - If an execution-status comment is posted before PR closeout, it stays deterministic and does not contain option menus or recommendation prose.
 
 ## Notes
