@@ -1,4 +1,4 @@
 interface:
   display_name: "Develop SwiftUI with State Testing"
-  short_description: "Build SwiftUI around headless state verification"
-  default_prompt: "Use $develop-swiftui-with-state-testing to audit this SwiftUI feature and plan the smallest state-driven verification workflow."
+  short_description: "Adopt and verify SwiftUI state seams"
+  default_prompt: "Use $develop-swiftui-with-state-testing to guide adoption or verify feature and app-wide product state without mounting SwiftUI."

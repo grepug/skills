@@ -1,6 +1,6 @@
 # Pattern and Refactoring
 
-Use this reference to classify SwiftUI code, audit the Feature State Seam, and design the smallest compliant refactor.
+Use this reference to classify SwiftUI code and observable models, audit Feature and Application State Seams, and design the smallest compliant refactor.
 
 ## Contents
 
@@ -9,6 +9,7 @@ Use this reference to classify SwiftUI code, audit the Feature State Seam, and d
 - [Report findings](#report-findings)
 - [Recognize a coupled View](#recognize-a-coupled-view)
 - [Use the default Feature Model pattern](#use-the-default-feature-model-pattern)
+- [Use the Application Model pattern](#use-the-application-model-pattern)
 - [Keep the Container translation-only](#keep-the-container-translation-only)
 - [Make convenience components safe](#make-convenience-components-safe)
 - [Refactor incrementally](#refactor-incrementally)
@@ -26,7 +27,7 @@ Treat a View as a Presentation Component when it:
 - owns only animation, focus, hover, press, geometry, scroll, or other visual interaction state; and
 - performs no product branching or effects.
 
-Presentation Components are exempt from the Feature State Seam. Do not create a Model merely to move visual state out of a View.
+Presentation Components are exempt from a State Seam. Do not create a Model merely to move visual state out of a View.
 
 ### Feature Container
 
@@ -52,9 +53,35 @@ Treat an existing observable model or reducer/store as a compliant Feature Model
 - guards duplicate or invalid operations independently of controls; and
 - is driven through the same interface by SwiftUI and tests.
 
+### Application Container
+
+Treat a root, scene, tab, split-view, or cross-feature View as an Application Container when it translates any of these:
+
+- typed navigation stacks or root-flow selection;
+- global sheets, covers, alerts, or windows;
+- feature outcomes into cross-feature routes;
+- deep links, restoration, session changes, or app lifecycle;
+- platform dismissals or back navigation with product consequences; or
+- lifetime and composition of child Feature Models.
+
+An Application Container may obtain a production model with `@Environment(AppModel.self)`. Keep it translation-only: forward semantic input to the Application State Seam and render the resulting state. Do not make routing or recovery decisions in View closures.
+
+### Application Model
+
+Treat an observable model or reducer/store as an Application State Seam when it:
+
+- can be constructed directly without `App`, `Scene`, a View, or an environment container;
+- owns app-wide product state rather than presentation mechanics;
+- exposes typed routes, presentations, root state, and semantic reconciliation intents without SwiftUI types;
+- receives feature outcomes without being injected into Feature Models;
+- accepts production dependencies through initialization or a composition root; and
+- can serve as a headless entry point when the acceptance claim crosses features.
+
+Allow the Application Model to own child Feature Models when it owns their identity, lifetime, restoration, or coordination. Do not require every shared repository or service to become observable application state.
+
 ### Platform Adapter
 
-Treat code as a platform adapter when its behavior only exists in SwiftUI, UIKit, AppKit, or an entitlement/runtime host. Keep the adapter narrow. Move the product meaning on either side of it into the Feature State Seam and hand off the runtime verification explicitly.
+Treat code as a platform adapter when its behavior only exists in SwiftUI, UIKit, AppKit, or an entitlement/runtime host. Keep the adapter narrow. Move the product meaning on either side of it into the appropriate State Seam and hand off the runtime verification explicitly.
 
 ## Audit the Seam
 
@@ -64,9 +91,9 @@ Run the candidate scanner first:
 scripts/find-state-seam-candidates.sh Sources Packages/MyFeature/Sources
 ```
 
-Then inspect every reported line semantically. The scanner intentionally reports valid visual state alongside possible violations.
+Then inspect every reported line semantically. The scanner intentionally reports valid visual state and observable models alongside possible violations.
 
-For each Feature Container, answer:
+For each Feature or Application Container, answer:
 
 1. What complete user outcome does this surface participate in?
 2. Which state can the user observe or act on?
@@ -78,6 +105,17 @@ For each Feature Container, answer:
 8. Can it use production adapters and the real authoritative system?
 9. What behavior still requires rendered/platform verification?
 
+For each Application Model candidate, also answer:
+
+1. Where is the production instance constructed and injected?
+2. Can a test construct it directly without importing SwiftUI?
+3. Does its public testing interface expose `NavigationPath`, `Binding`, `DismissAction`, or another SwiftUI type?
+4. Which decisions are app-wide, and which state should remain feature-local?
+5. Do features emit semantic outcomes, or depend upward on the application model?
+6. Which platform-originated changes have product consequences and therefore need reconciliation intents?
+7. Can one responsibility be tested without constructing unrelated subsystems?
+8. Which behavior has a credible failure hypothesis rather than a direct-assignment assertion?
+
 Flag common violations:
 
 - clients, repositories, databases, or files used directly in a View;
@@ -88,23 +126,29 @@ Flag common violations:
 - async work that cannot be awaited or observed semantically;
 - test-only product branches;
 - tests that invoke a different interface than SwiftUI; and
-- convenience components that swallow product outcomes.
+- convenience components that swallow product outcomes;
+- an Application Model that can only be obtained from the SwiftUI environment;
+- SwiftUI types exposed through a State Seam's public testing interface;
+- Feature Models that depend on the Application Model;
+- direct route or presentation writes that bypass meaningful reconciliation; and
+- catch-all global models that make unrelated feature fixtures mandatory.
 
 ## Report Findings
 
 Do not issue a project-wide numeric score. Report a migration map:
 
-| Surface | Classification | State seam | Product logic in View | E2E readiness | Recommendation |
+| Surface | Classification | State seam | Product logic in View | Valuable verification | Recommendation |
 | --- | --- | --- | --- | --- | --- |
 | `ProfileHeader` | Presentation Component | Exempt | None | N/A | Keep |
 | `CheckoutView` | Feature Container | Missing | Submit and destination | Blocked | Extract `CheckoutModel` |
-| `OrdersView` | Feature Container | Partial | Error toast | Ready after fix | Move failure state |
+| `AppModel` | Application Model | Partial | Root gating in `App` | Session restore State Test | Move root decision |
+| `SettingsRoute` | Application Model | Present | None | No failure hypothesis | Do not test direct assignment |
 
 Use these priorities:
 
-- **Blocking**: a critical workflow cannot be driven without mounting SwiftUI.
-- **Important**: the seam exists but hides failure, destination, persistence, or async completion.
-- **Advisory**: a clarity or convenience improvement that does not block state verification.
+- **Blocking**: a critical workflow cannot be driven without mounting SwiftUI, the seam requires SwiftUI types, dependencies are created in SwiftUI, or risk-bearing behavior cannot be observed headlessly.
+- **Important**: the seam hides failure, destination, persistence, async completion, or reconciliation; features depend upward on an app model; unrelated global responsibilities make focused verification expensive; or existing tests are tautological.
+- **Advisory**: naming, organization, or model breadth could be clearer but ownership and headless verification remain sound.
 
 Finish with the smallest ordered refactor sequence. Do not prescribe a repository-wide migration when one workflow can be made testable locally.
 
@@ -241,6 +285,122 @@ Use an enum for mutually exclusive phases and a typed optional destination. Keep
 
 Expose stable semantic failures and recovery. Keep raw errors for diagnostics; do not require tests to compare arbitrary `Error` values or exact localized copy.
 
+## Use the Application Model Pattern
+
+Keep the model's state-testing interface independent of SwiftUI. Use typed product values and semantic inputs:
+
+```swift
+import Foundation
+import Observation
+
+typealias OrderID = UUID
+
+enum AppRoute: Equatable, Hashable, Sendable {
+    case checkout
+    case order(OrderID)
+    case settings
+}
+
+enum AppPresentation: Hashable, Identifiable, Sendable {
+    case signInRequired
+    case invalidLink
+
+    var id: Self { self }
+}
+
+enum CheckoutOutcome: Equatable, Sendable {
+    case completed(OrderID)
+    case cancelled
+}
+
+struct AppDestination: Sendable {
+    let routes: [AppRoute]
+}
+
+struct DeepLinkClient: Sendable {
+    var destination: @Sendable (URL) async throws -> AppDestination
+}
+
+struct SessionClient: Sendable {
+    var hasValidSession: @Sendable () async -> Bool
+}
+
+@MainActor
+@Observable
+final class AppModel {
+    private(set) var routes: [AppRoute] = []
+    private(set) var presentation: AppPresentation?
+
+    private let deepLinks: DeepLinkClient
+    private let session: SessionClient
+
+    init(deepLinks: DeepLinkClient, session: SessionClient) {
+        self.deepLinks = deepLinks
+        self.session = session
+    }
+
+    func handled(_ outcome: CheckoutOutcome) {
+        switch outcome {
+        case .completed(let orderID):
+            routes = [.order(orderID)]
+        case .cancelled:
+            routes.removeAll { $0 == .checkout }
+        }
+    }
+
+    func deepLinkReceived(_ url: URL) async {
+        guard await session.hasValidSession() else {
+            presentation = .signInRequired
+            return
+        }
+
+        guard let destination = try? await deepLinks.destination(url) else {
+            presentation = .invalidLink
+            return
+        }
+        routes = destination.routes
+    }
+
+    func navigationPathChanged(_ routes: [AppRoute]) {
+        let abandonedCheckout = self.routes.contains(.checkout)
+            && !routes.contains(.checkout)
+        self.routes = routes
+        if abandonedCheckout {
+            // Cancel or reconcile product work through an injected dependency.
+        }
+    }
+
+    func presentationDismissed(_ dismissed: AppPresentation) {
+        guard presentation == dismissed else { return }
+        presentation = nil
+    }
+}
+```
+
+The production container may translate this state into SwiftUI mechanics:
+
+```swift
+struct AppContainer: View {
+    @Environment(AppModel.self) private var app
+
+    var body: some View {
+        NavigationStack(
+            path: Binding(
+                get: { app.routes },
+                set: { app.navigationPathChanged($0) }
+            )
+        ) {
+            RootView()
+        }
+        .onOpenURL { url in
+            Task { await app.deepLinkReceived(url) }
+        }
+    }
+}
+```
+
+Keep the SwiftUI code in production only. Headless tests import `Observation` when needed, construct `AppModel` directly, call its public intents, and assert semantic state. Use a State Test only when routing or presentation depends on async work, branching, reconciliation, cross-seam outcomes, or another risk-bearing condition; do not test `routes.append(.settings)` merely because it is observable.
+
 ## Keep the Container Translation-Only
 
 Split composition from pure rendering:
@@ -303,7 +463,7 @@ struct NoteEditorView: View {
 }
 ```
 
-The Container may map semantic state into SwiftUI presentation. The Product E2E asserts `destination`; rendered presentation remains outside this skill.
+The Container may map semantic state into SwiftUI presentation. A qualifying headless test asserts `destination`; rendered presentation remains outside this skill.
 
 ## Make Convenience Components Safe
 
@@ -349,7 +509,8 @@ Use this sequence:
 6. Make one-shot intents `async` and meaningfully awaitable.
 7. Keep long-lived observation behind explicit start/stop intents and observable state.
 8. Turn the original View into a translation-only Container plus Presentation Components.
-9. Add the smallest local State Test needed for deterministic branches.
-10. Create one retained, Git-ignored Scratch Product E2E happy path when the workflow is critical.
+9. State a concrete failure hypothesis and omit tests that only restate assignments.
+10. Add the smallest local State Test for qualifying deterministic risk-bearing behavior.
+11. Create one retained, Git-ignored Scratch Product E2E only when a critical outcome has uncovered production-composition risk.
 
 Do not expose private implementation, add test-only product branches, or redesign unrelated features merely to satisfy the audit.

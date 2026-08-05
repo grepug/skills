@@ -5,6 +5,7 @@ Use this reference to choose the local verification layer, write stable assertio
 ## Contents
 
 - [Use two local layers](#use-two-local-layers)
+- [Require a failure hypothesis](#require-a-failure-hypothesis)
 - [Keep produced tests out of CI](#keep-produced-tests-out-of-ci)
 - [Assert semantic outcomes](#assert-semantic-outcomes)
 - [Bound every async operation](#bound-every-async-operation)
@@ -18,20 +19,28 @@ Use this reference to choose the local verification layer, write stable assertio
 
 ### State Test
 
-Use a State Test for deterministic semantic behavior with controlled adapters:
+Use a State Test for deterministic semantic behavior with controlled adapters when the behavior has a credible failure surface:
 
-- validation and accepted/ignored intents;
-- loading, failure, retry, cancellation, and recovery;
-- phase and destination transitions;
-- ordering and reconciliation logic;
+- async loading, failure, retry, cancellation, and recovery;
+- branching on returned data, authentication, permissions, or persisted state;
+- ordering, stale-result protection, and reconciliation logic;
 - duplicate-action protection; and
-- time-dependent behavior when a clock is deliberately controlled.
+- time-dependent behavior when a clock is deliberately controlled;
+- persistence or other durable side effects;
+- cross-feature/application composition; and
+- non-obvious invariants or known regressions.
+
+Use one State Test category with the narrowest useful scope:
+
+- **Feature scope** drives one Feature State Seam.
+- **Application scope** drives one Application State Seam.
+- **Composition scope** passes real semantic outcomes between production feature and application models without mounting SwiftUI.
 
 Do not label controlled-adapter success as proof that the product composition works.
 
 ### Product E2E
 
-Use one Scratch Product E2E happy path for each affected critical user workflow at the appropriate development or handoff gate. Drive a complete user outcome through production adapters to its real authoritative system.
+Use a Scratch Product E2E only when a workflow is critical and a plausible production-composition failure remains uncovered by controlled State Tests. Drive a complete user outcome through production adapters to its real authoritative system.
 
 A critical workflow prevents or materially damages a user outcome when broken, such as:
 
@@ -44,9 +53,60 @@ A critical workflow prevents or materially damages a user outcome when broken, s
 
 Organize Product E2E by user outcome, not screen. One workflow may cross several Models, persistence layers, or services.
 
+Do not create Product E2E merely because a workflow is critical or calls an external API. State the composition failure hypothesis, such as a wrong production adapter, incompatible payload, authentication mismatch, persistence discrepancy, or premature completion. If a lower layer proves the risk faithfully, use that lower layer.
+
+## Require a Failure Hypothesis
+
+Before writing any State Test or Product E2E, complete this sentence:
+
+```text
+This test would fail if the product incorrectly ...
+```
+
+Reject hypotheses that only say a direct assignment used the wrong literal. Do not test an intent like `settingsTapped()` when its entire behavior is an obvious `routes.append(.settings)` with no branching, effect, reconciliation, invariant, or regression history.
+
+For qualifying tests, select only evidence that proves the hypothesis:
+
+- a controlled dependency receives the correct semantic input;
+- an observable in-progress phase remains active while controlled work is suspended;
+- success data determines the correct completion or route;
+- failure preserves a no-navigation or no-persistence invariant;
+- retry starts new work and can recover;
+- cancellation or a stale completion cannot overwrite newer state;
+- durable state agrees with semantic completion; or
+- an Application State Seam routes from the actual feature outcome, session, deep link, or restored state.
+
+Do not require a fixed assertion checklist. Record deliberately untested seams as headlessly driveable but not recommended for testing because they lack meaningful risk.
+
+An Application State Test follows the same rule and contains no SwiftUI:
+
+```swift
+import Foundation
+import Testing
+@testable import MyApp
+
+@Test @MainActor
+func expiredSessionBlocksOrderDeepLink() async {
+    let deepLinks = RecordingDeepLinkClient()
+    let app = AppModel(
+        deepLinks: deepLinks.client,
+        session: .expired
+    )
+    let orderURL = URL(string: "myapp://orders/123")!
+
+    await app.deepLinkReceived(orderURL)
+
+    #expect(app.presentation == .signInRequired)
+    #expect(app.routes.isEmpty)
+    #expect(deepLinks.requestedURLs.isEmpty)
+}
+```
+
+Its failure hypothesis is that an expired session might still query protected order data or navigate behind the authentication gate. By contrast, a test that only calls `settingsTapped()` and expects `.settings` has no comparable defect surface and should be omitted.
+
 ## Keep Produced Tests out of CI
 
-Every test produced by this skill is local-only.
+Every test produced by this skill is local-only and headless.
 
 - Require `STATE_TEST_WORKFLOW_ENABLED=1` or a project-equivalent explicit gate.
 - Put generated State Tests and Product E2E source under the repository's ignored scratch directory by default.
@@ -55,6 +115,7 @@ Every test produced by this skill is local-only.
 - Never edit CI to execute these tests, the runner, or the candidate scanner.
 - Audit CI commands to ensure the gate is absent.
 - Allow committed harness/support code to compile in CI so it does not silently rot.
+- Never import `SwiftUI` in produced test source or instantiate a View, `App`, `Scene`, environment container, `NavigationPath`, or another SwiftUI runtime type.
 
 For Swift Testing:
 
@@ -107,6 +168,8 @@ Classify observations:
 - **Incidental state**: task handles, cache representation, counters, timestamps, or implementation details. Do not assert it.
 
 Assert a transient phase only when a user can observe or act on it. Do not assert exact generated copy, timestamps, identifiers, or provider output unless they are the contract.
+
+Observation is synchronization machinery, not evidence by itself. A notification that a property changed does not justify a test and does not prove the intended effect, branch, durable result, or negative invariant.
 
 ## Bound Every Async Operation
 
@@ -180,7 +243,45 @@ func withOperationDeadline<Result: Sendable>(
 
 Structured concurrency waits for child tasks to unwind. This helper does not hard-stop a non-cooperative deadlock; the runner watchdog owns that guarantee.
 
-For long-lived streams or subscriptions, adapt a bounded semantic wait:
+For projects whose test deployment supports iOS 26, macOS 26, watchOS 26, tvOS 26, or visionOS 26, prefer [`Observation.Observations`](https://github.com/swiftlang/swift-evolution/blob/main/proposals/0475-observed.md) for bounded semantic waits on `@Observable` models. It emits an initial value and then transactional snapshots of properties read by its closure. Create it in the model's actor context; for a `@MainActor` model, create and iterate it from `@MainActor` test code.
+
+```swift
+import Observation
+import Testing
+
+@Test @MainActor
+func paymentFailureDoesNotNavigate() async throws {
+    let payment = SuspendedPaymentClient()
+    let model = CheckoutModel(payment: payment)
+    let phases = Observations { model.phase }
+
+    let submitting = Task { @MainActor in
+        for await phase in phases where phase == .submitting {
+            return phase
+        }
+        return nil
+    }
+
+    let operation = Task { await model.submitTapped() }
+    await payment.waitUntilRequested()
+
+    #expect(
+        try await withOperationDeadline(.local, operation: "observe submitting") {
+            await submitting.value
+        } == .submitting
+    )
+
+    payment.resume(throwing: PaymentError.declined)
+    await operation.value
+
+    #expect(model.phase == .failed(.paymentDeclined))
+    #expect(model.destination == nil)
+}
+```
+
+Use a controlled dependency to hold an important transient phase open; do not rely on task scheduling to catch it. `Observations` coalesces synchronous mutations into a consistent value at the next suspension and may omit intermediate values when production outpaces iteration. Do not use it to count setter calls or prove every incidental transition.
+
+For earlier deployment targets, or long-lived streams that are not backed by the modern API, adapt a bounded semantic polling wait:
 
 ```swift
 @MainActor
@@ -210,18 +311,19 @@ Prefer one-shot intents that return at meaningful completion:
 await model.saveTapped()
 ```
 
-Use `awaitState` only for long-lived observation. Never use a fixed sleep as completion evidence or expose internal `Task` values solely for tests.
+Use either wait only when an intent cannot return at the semantic point being asserted. Never use a fixed sleep as completion evidence, recursively wrap the one-shot `withObservationTracking` callback as an ad hoc async stream, or expose internal `Task` values solely for tests.
 
 ## Audit Product E2E Fidelity
 
 Before labeling a scenario Product E2E, prove all of these:
 
-- It instantiates the production Feature Model.
+- It states the critical impact and uncovered production-composition failure hypothesis.
+- It instantiates the narrowest production Feature or Application State Seam that contains the complete claim.
 - It drives the same public intents used by SwiftUI.
 - It selects production adapters rather than mocks, stubs, or in-memory substitutes, except for run-isolated identity and storage location.
 - It uses the production serialization/client path when one exists.
 - It reaches the declared authoritative system.
-- It asserts a semantic client outcome.
+- It asserts a semantic State Seam outcome.
 - It verifies a durable result when the user outcome promises one.
 - It contains no test-only product behavior branch.
 - It fails if the authoritative system is unavailable or violates its contract.
@@ -239,6 +341,8 @@ NoteEditorModel.saveTapped()
 
 If any link uses a controlled adapter, call it a State Test and state the narrower claim.
 
+Treat the State Seam as the entry point, not the ownership boundary of the result. A Product E2E may expose faults in the model, dependency selection, serialization, networking, authentication, backend behavior, local database, filesystem, cache, synchronization, or route composition. Record the last trustworthy state and the boundary where observed behavior diverged; assign a subsystem owner only when evidence supports it.
+
 ## Bootstrap Authentication Safely
 
 Treat authentication as setup unless login itself is the acceptance claim. Permit a **Test Authentication Bootstrap** that supplies a temporary valid session without mounting interactive provider UI.
@@ -255,7 +359,7 @@ Require:
 
 - production-environment rejection;
 - short-lived credentials and no committed token values;
-- no test branch in the shipped Feature Model;
+- no test branch in the shipped State Seam;
 - Run Identity ownership and exact cleanup where possible; and
 - evidence that interactive authentication was not covered.
 
@@ -318,10 +422,13 @@ Scenario: `<exact suite/test>`
 Run identity: `<run-id>`
 
 State seam:
-`<FeatureModel.publicIntent()>`
+`<Feature or Application Model.publicIntent()>`
 
 Production path:
-`<Feature Model → production adapters → authoritative system>`
+`<State Seam → production adapters → backend/database/files/authentication → authoritative result>`
+
+Failure hypothesis:
+`<plausible defect this scenario detects>`
 
 Assertions:
 - `<semantic outcome>`
@@ -348,7 +455,7 @@ Never include credentials, raw tokens, private responses, or full nondeterminist
 
 ## Hand off Residual UI Scope
 
-Do not mount or automate SwiftUI or launch the product app under this skill. A headless test process may use a simulator when its platform runtime requires one. Statically inspect that Containers map controls, lifecycle, bindings, and destinations to the expected seam, then report residual risks:
+Do not import, mount, or automate SwiftUI in produced test source or launch the product app under this skill. A headless test process may use a simulator when its platform runtime requires one. Statically inspect that Containers map controls, lifecycle, bindings, and destinations to the expected seam, then report residual risks:
 
 ```text
 Headless verification passed.

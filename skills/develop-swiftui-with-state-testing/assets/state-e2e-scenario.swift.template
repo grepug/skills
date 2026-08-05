@@ -4,6 +4,7 @@ import Testing
 
 // Keep this generated source in the repository's ignored Scratch test
 // directory until the user explicitly authorizes deletion.
+// Never import SwiftUI or construct a View, Scene, App, or environment here.
 
 private enum LocalStateWorkflow {
     static let isEnabled = ProcessInfo.processInfo.environment[
@@ -17,8 +18,11 @@ private enum LocalStateWorkflow {
     .enabled(if: LocalStateWorkflow.isEnabled)
 )
 struct __SCENARIO_NAME__ {
+    // Whole-product acceptance claim: __ACCEPTANCE_CLAIM__
+    // Composition failure hypothesis: __COMPOSITION_FAILURE_HYPOTHESIS__
+    // Production path: __STATE_SEAM_TO_AUTHORITATIVE_RESULT_PATH__
     @Test("__ACCEPTANCE_CLAIM__")
-    func happyPath() async throws {
+    func productOutcome() async throws {
         let runtime = try await withOperationDeadline(
             .system,
             operation: "prepare authoritative runtime"
@@ -26,18 +30,20 @@ struct __SCENARIO_NAME__ {
             try await __PROJECT_HARNESS__.startFromProtectedRunConfiguration()
         }
 
-        let model = await runtime.makeProductionFeatureModel()
+        // Return the narrowest production Feature or Application State Seam
+        // that contains the complete acceptance claim.
+        let stateSeam = await runtime.__MAKE_PRODUCTION_STATE_SEAM__()
 
         try await withOperationDeadline(
             .system,
             operation: "__PUBLIC_USER_INTENT__"
         ) {
-            await model.__PUBLIC_USER_INTENT__()
+            await stateSeam.__PUBLIC_USER_INTENT__()
         }
 
         // Assert the minimum stable user-observable outcome.
-        #expect(model.phase == __EXPECTED_SEMANTIC_PHASE__)
-        #expect(model.destination == __EXPECTED_DESTINATION__)
+        #expect(stateSeam.__SEMANTIC_STATE__ == __EXPECTED_SEMANTIC_STATE__)
+        #expect(stateSeam.__DESTINATION_STATE__ == __EXPECTED_DESTINATION__)
 
         // Verify a durable result when the user outcome promises one.
         let durableResult = try await withOperationDeadline(

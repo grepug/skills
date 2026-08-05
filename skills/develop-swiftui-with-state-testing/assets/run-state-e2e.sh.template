@@ -21,7 +21,7 @@ SCENARIO_PID=""
 WATCHDOG_PID=""
 
 fail() {
-  echo "SwiftUI state E2E setup failed: $1" >&2
+  echo "State Seam Product E2E setup failed: $1" >&2
   exit 1
 }
 
@@ -171,7 +171,7 @@ run_with_watchdog() {
     sleep "${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}"
     if kill -0 "${SCENARIO_PID}" 2>/dev/null; then
       : >"${timeout_marker}"
-      echo "State E2E scenario timed out after ${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}s" >&2
+      echo "State Seam Product E2E scenario timed out after ${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}s" >&2
       kill -TERM "${SCENARIO_PID}" 2>/dev/null || true
       sleep 5
       kill -KILL "${SCENARIO_PID}" 2>/dev/null || true
