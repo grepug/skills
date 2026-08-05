@@ -281,12 +281,15 @@ Do not create a worktree merely for this workflow. Use the current worktree's ig
 Before reporting success, verify every Scratch source path:
 
 ```bash
+tracked_scratch="$(git ls-files -- "${scenario_path}")"
+staged_scratch="$(git diff --cached --name-only -- "${scenario_path}")"
+
 git check-ignore --quiet -- "${scenario_path}"
-! git ls-files --error-unmatch -- "${scenario_path}" >/dev/null 2>&1
-! git diff --cached --name-only -- "${scenario_path}" | rg -q .
+[[ -z "${tracked_scratch}" ]]
+[[ -z "${staged_scratch}" ]]
 ```
 
-If any check fails, keep the source, remove it from staging if necessary, add or repair the narrow ignore rule when mutation is authorized, and report verification as blocked until all three conditions hold. Never use `git add -f` for Scratch source.
+Run the checks for each Scratch file or directory path; Git pathspec matching makes the tracked and staged checks include files below a directory. If any check fails, keep the source, remove it from staging if necessary, add or repair the narrow ignore rule when mutation is authorized, and report verification as blocked until all three conditions hold. Never use `git add -f` for Scratch source.
 
 Treat retained Scratch scenarios as debugging material, not evergreen proof. Before reuse, compare the current acceptance claim, public intents, production adapters, authoritative system, and semantic assertions; update the scenario as needed and rerun it against the current commit.
 
