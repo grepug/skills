@@ -323,7 +323,7 @@ Never include credentials, raw tokens, private responses, or full nondeterminist
 
 ## Hand off Residual UI Scope
 
-Do not launch SwiftUI under this skill. Statically inspect that Containers map controls, lifecycle, bindings, and destinations to the expected seam, then report residual risks:
+Do not mount or automate SwiftUI or launch the product app under this skill. A headless test process may use a simulator when its platform runtime requires one. Statically inspect that Containers map controls, lifecycle, bindings, and destinations to the expected seam, then report residual risks:
 
 ```text
 Headless verification passed.

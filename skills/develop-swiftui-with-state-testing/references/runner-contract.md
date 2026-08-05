@@ -102,6 +102,7 @@ Require all of these:
 - exact principal/data cleanup keyed by Run Identity;
 - validated paths before recursive removal;
 - signal traps for ordinary interruption; and
+- signal handlers that stop and reap the selected test process before cleaning external state; and
 - failure when cleanup cannot prove ownership.
 
 Do not use a home directory, repository root, unresolved variable, broad glob, or `/tmp` itself as a cleanup target.
@@ -127,8 +128,9 @@ Before declaring the runner ready:
 5. Run one client-only or real-system smoke scenario.
 6. Force a scenario failure and confirm the original status is preserved.
 7. Force a timeout and confirm status `124` plus diagnostic state.
-8. Confirm client files and run-owned product data are removed.
-9. Confirm a reused external system is not stopped.
-10. Inspect CI configuration and confirm the gate cannot be activated.
+8. Signal the runner and confirm the selected test process stops before cleanup.
+9. Confirm client files and run-owned product data are removed.
+10. Confirm a reused external system is not stopped.
+11. Inspect CI configuration and confirm the gate cannot be activated.
 
 Record any unavailable validation as a blocker. Do not substitute a screenshot or controlled-adapter pass for missing Product E2E evidence.

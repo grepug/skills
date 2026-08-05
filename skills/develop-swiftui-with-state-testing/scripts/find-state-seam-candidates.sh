@@ -53,11 +53,11 @@ candidate_pattern='(@State|@StateObject|@ObservedObject|@Environment|@Environmen
 
 found=0
 for file in "${swift_files[@]}"; do
-  if ! rg -q --pcre2 "${view_declaration_pattern}" "${file}"; then
+  if ! rg -q "${view_declaration_pattern}" "${file}"; then
     continue
   fi
 
-  matches="$(rg -n --no-heading --color never --pcre2 "${candidate_pattern}" "${file}" || true)"
+  matches="$(rg -n --no-heading --color never "${candidate_pattern}" "${file}" || true)"
   if [[ -z "${matches}" ]]; then
     continue
   fi

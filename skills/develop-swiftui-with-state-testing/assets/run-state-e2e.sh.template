@@ -15,6 +15,8 @@ RUN_ROOT=""
 CONFIG_PATH=""
 STARTED_SYSTEM=0
 SYSTEM_PID=""
+SCENARIO_PID=""
+WATCHDOG_PID=""
 
 fail() {
   echo "SwiftUI state E2E setup failed: $1" >&2
@@ -75,6 +77,40 @@ remove_run_sandbox() {
   esac
 }
 
+stop_active_watchdog() {
+  if [[ -z "${WATCHDOG_PID}" ]]; then
+    return
+  fi
+
+  kill "${WATCHDOG_PID}" 2>/dev/null || true
+  wait "${WATCHDOG_PID}" 2>/dev/null || true
+  WATCHDOG_PID=""
+}
+
+stop_active_scenario() {
+  local terminator_pid=""
+
+  if [[ -z "${SCENARIO_PID}" ]]; then
+    return
+  fi
+
+  if kill -0 "${SCENARIO_PID}" 2>/dev/null; then
+    kill -TERM "${SCENARIO_PID}" 2>/dev/null || true
+    (
+      sleep 5
+      kill -KILL "${SCENARIO_PID}" 2>/dev/null || true
+    ) &
+    terminator_pid="$!"
+  fi
+
+  wait "${SCENARIO_PID}" 2>/dev/null || true
+  if [[ -n "${terminator_pid}" ]]; then
+    kill "${terminator_pid}" 2>/dev/null || true
+    wait "${terminator_pid}" 2>/dev/null || true
+  fi
+  SCENARIO_PID=""
+}
+
 cleanup() {
   local original_status="$?"
   local cleanup_failed=0
@@ -82,6 +118,8 @@ cleanup() {
   trap - EXIT INT TERM
   set +e
 
+  stop_active_watchdog || cleanup_failed=1
+  stop_active_scenario || cleanup_failed=1
   project_cleanup_test_owned_data || cleanup_failed=1
   project_stop_authoritative_system_if_started || cleanup_failed=1
   remove_run_sandbox || cleanup_failed=1
@@ -121,31 +159,29 @@ prepare_run_sandbox() {
 }
 
 run_with_watchdog() {
-  local scenario_pid=""
-  local watchdog_pid=""
   local scenario_status=0
   local timeout_marker="${RUN_ROOT}/scenario-timeout"
 
   project_run_selected_scenario &
-  scenario_pid="$!"
+  SCENARIO_PID="$!"
 
   (
     sleep "${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}"
-    if kill -0 "${scenario_pid}" 2>/dev/null; then
+    if kill -0 "${SCENARIO_PID}" 2>/dev/null; then
       : >"${timeout_marker}"
       echo "State E2E scenario timed out after ${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}s" >&2
-      kill -TERM "${scenario_pid}" 2>/dev/null || true
+      kill -TERM "${SCENARIO_PID}" 2>/dev/null || true
       sleep 5
-      kill -KILL "${scenario_pid}" 2>/dev/null || true
+      kill -KILL "${SCENARIO_PID}" 2>/dev/null || true
     fi
   ) &
-  watchdog_pid="$!"
+  WATCHDOG_PID="$!"
 
   set +e
-  wait "${scenario_pid}"
+  wait "${SCENARIO_PID}"
   scenario_status="$?"
-  kill "${watchdog_pid}" 2>/dev/null || true
-  wait "${watchdog_pid}" 2>/dev/null || true
+  SCENARIO_PID=""
+  stop_active_watchdog
   set -e
 
   if [[ -f "${timeout_marker}" ]]; then

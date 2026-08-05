@@ -27,8 +27,7 @@ struct __SCENARIO_NAME__ {
 
         try await withOperationDeadline(
             .system,
-            operation: "__PUBLIC_USER_INTENT__",
-            lastState: { await model.semanticStateDescription }
+            operation: "__PUBLIC_USER_INTENT__"
         ) {
             await model.__PUBLIC_USER_INTENT__()
         }

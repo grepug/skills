@@ -116,7 +116,7 @@ For an audit, report:
 
 For verification, post evidence to the existing issue or PR when available; otherwise include it in the final response. Do not create a permanent repository result document. Use the evidence template in [testing-workflow.md](references/testing-workflow.md).
 
-Never launch or control SwiftUI, a simulator, or screenshots under this skill. Statically audit Container wiring, then hand off the small residual rendered/runtime checks explicitly.
+Never mount or automate SwiftUI, launch the product app, or capture screenshots under this skill. A headless test process may use a simulator when the platform test runtime requires one. Statically audit Container wiring, then hand off the small residual rendered/runtime checks explicitly.
 
 ## Use the Bundled Resources
 
