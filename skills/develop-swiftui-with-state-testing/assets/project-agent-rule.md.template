@@ -4,10 +4,18 @@ For meaningful SwiftUI feature work, bug fixes, and delivery review, use
 `$develop-swiftui-with-state-testing` before relying on rendered UI or screenshots.
 
 - Classify touched Views first. Pure Presentation Components are exempt.
-- Keep product behavior behind a production Feature State Seam that tests and SwiftUI drive through the same public intents.
-- Verify semantic state, failure, recovery, completion, and destination without mounting SwiftUI.
-- For each affected critical workflow, run one local headless Product E2E happy path through production adapters to the real authoritative system.
+- Keep product behavior behind production Feature or Application State Seams that tests and SwiftUI drive through the same public intents.
+- Treat `@Environment(Model.self)` app-wide models as Application State Seam candidates; construct them directly in tests.
+- Keep State Seam testing interfaces free of SwiftUI types. Produced tests must not import SwiftUI or instantiate Views, Scenes, Apps, environment containers, or SwiftUI navigation types.
+- Before writing a State Test, state the failure hypothesis. Omit direct assignment and obvious route-mutation tests that have no meaningful branch, effect, reconciliation, invariant, or regression risk.
+- Use controlled State Tests for async phases, failure, recovery, cancellation, persistence, reconciliation, and focused feature-to-application composition.
+- Run a local headless Product E2E only when a critical outcome has uncovered production-composition risk that lower layers cannot prove faithfully.
+- Treat Product E2E as whole-product verification entered through the narrowest State Seam. A failure may belong to client composition, serialization, authentication, backend behavior, local databases, files, caches, or synchronization; assign ownership only after evidence identifies the boundary.
 - Use only the repository's canonical local runner, explicit local gate, exact test filter, bounded async operations, and hard watchdog.
-- Keep generated tests in the ignored scratch test directory. Record evidence, clean run-owned data, and delete scratch source unless it passes the promotion gate.
+- Keep generated tests in the ignored scratch test directory. Record evidence and clean run-owned runtime data, but retain Scratch source locally until the user authorizes deletion.
+- Treat Scratch source that is not ignored, is tracked, or is staged as a blocking failure. Never force-add it; promotion requires explicit user approval and migration into the maintained test suite.
+- Treat retained Scratch tests as reusable material, not current evidence: recheck the acceptance claim and rerun against the current commit.
+- Report retained paths, file count, last validated commit, and whether cleanup happens by deleting the worktree or removing explicit paths.
 - Never run skill-produced tests or helpers in CI. They may compile there.
+- Prefer `Observation.Observations` for bounded semantic waits when the project supports the iOS 26-era API; otherwise use the project-owned bounded polling helper. Hold important transient states open with controlled dependencies.
 - Reserve rendered/manual UI verification for residual layout, gesture, focus, accessibility-runtime, platform-hosting, and wiring risks.

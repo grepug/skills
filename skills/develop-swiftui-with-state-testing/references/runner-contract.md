@@ -1,6 +1,6 @@
 # Runner Contract
 
-Use this reference to create or audit the one canonical repo-owned command that executes local State Tests and disposable Product E2E scenarios.
+Use this reference to create or audit the one canonical repo-owned command that executes local State Tests and retained Git-ignored whole-product E2E scenarios through Feature or Application State Seams.
 
 ## Contents
 
@@ -25,7 +25,9 @@ scripts/run-swiftui-state-e2e
 
 Require one exact suite/test filter. Do not run every ignored or promoted local scenario implicitly.
 
-The runner is permanent project infrastructure. Business scenarios remain ignored and disposable.
+Run Product E2E only after the testing workflow records a critical outcome and uncovered production-composition failure hypothesis. The runner provides safe execution; its existence is not a reason to generate a scenario.
+
+The runner is permanent project infrastructure. Business scenarios remain ignored, uncommitted, and retained in the worktree until user-authorized deletion.
 
 ## Keep the Runner Project-Specific
 
@@ -34,6 +36,7 @@ Adapt `../assets/run-state-e2e.sh.template` into the target repository. Remove u
 The skill owns the lifecycle contract. The adopting repository owns:
 
 - the canonical Swift test command and target/scheme;
+- the narrowest production State Seam entry point for each selected outcome;
 - authoritative-system startup and readiness;
 - production environment rejection;
 - Test Authentication Bootstrap;
@@ -61,6 +64,8 @@ Implement these steps in order:
 12. Clean exact run-owned product data and client files.
 13. Stop only processes started by this run.
 14. Report cleanup failure separately without hiding the original test failure.
+
+Runner cleanup covers processes, credentials, run-owned product data, client files, and the run sandbox. It must never delete or mutate Scratch test source.
 
 ## Support Client-Only Products
 
@@ -132,5 +137,6 @@ Before declaring the runner ready:
 9. Confirm client files and run-owned product data are removed.
 10. Confirm a reused external system is not stopped.
 11. Inspect CI configuration and confirm the gate cannot be activated.
+12. Confirm successful, failed, timed-out, and signaled runs leave Scratch source unchanged.
 
 Record any unavailable validation as a blocker. Do not substitute a screenshot or controlled-adapter pass for missing Product E2E evidence.
