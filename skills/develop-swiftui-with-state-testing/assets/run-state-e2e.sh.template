@@ -1,0 +1,202 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+# Copy this template into the adopting repository and replace the project_*
+# hooks. Delete hooks the project does not need. Keep this runner local-only.
+
+STATE_TEST_WORKFLOW_ENABLED="${STATE_TEST_WORKFLOW_ENABLED:-}"
+STATE_E2E_FILTER="${STATE_E2E_FILTER:-}"
+STATE_E2E_RUN_ID="${STATE_E2E_RUN_ID:-$(date +%s)-$$}"
+STATE_E2E_SCENARIO_TIMEOUT_SECONDS="${STATE_E2E_SCENARIO_TIMEOUT_SECONDS:-300}"
+
+RUN_ROOT_BASE="${TMPDIR:-/tmp}/swiftui-state-e2e"
+RUN_ROOT=""
+CONFIG_PATH=""
+STARTED_SYSTEM=0
+SYSTEM_PID=""
+SCENARIO_PID=""
+WATCHDOG_PID=""
+
+fail() {
+  echo "SwiftUI state E2E setup failed: $1" >&2
+  exit 1
+}
+
+project_assert_non_production() {
+  fail "implement project_assert_non_production before using this runner"
+}
+
+project_validate_tools() {
+  :
+}
+
+project_start_authoritative_system_if_needed() {
+  # Client-only projects should delete this hook and its call.
+  :
+}
+
+project_wait_until_ready_if_needed() {
+  # Client-only projects should delete this hook and its call.
+  :
+}
+
+project_provision_test_context() {
+  # Create run-owned identity/storage and write protected configuration to
+  # CONFIG_PATH. Keep credentials out of command arguments.
+  :
+}
+
+project_run_selected_scenario() {
+  # Replace this function with the repository's exact test command. Use exec so
+  # the watchdog PID belongs to the real test process.
+  #
+  # exec <canonical-test-command> --filter "${STATE_E2E_FILTER}"
+  fail "implement project_run_selected_scenario before using this runner"
+}
+
+project_cleanup_test_owned_data() {
+  # Delete only data carrying STATE_E2E_RUN_ID or another exact ownership key.
+  :
+}
+
+project_stop_authoritative_system_if_started() {
+  if (( STARTED_SYSTEM == 1 )) && [[ -n "${SYSTEM_PID}" ]]; then
+    kill "${SYSTEM_PID}" 2>/dev/null || true
+  fi
+}
+
+remove_run_sandbox() {
+  if [[ -z "${RUN_ROOT}" ]]; then
+    return
+  fi
+
+  case "${RUN_ROOT}" in
+    "${RUN_ROOT_BASE}"/*) rm -rf -- "${RUN_ROOT}" ;;
+    *) echo "Refusing to remove unowned run directory: ${RUN_ROOT}" >&2; return 1 ;;
+  esac
+}
+
+stop_active_watchdog() {
+  if [[ -z "${WATCHDOG_PID}" ]]; then
+    return
+  fi
+
+  kill "${WATCHDOG_PID}" 2>/dev/null || true
+  wait "${WATCHDOG_PID}" 2>/dev/null || true
+  WATCHDOG_PID=""
+}
+
+stop_active_scenario() {
+  local terminator_pid=""
+
+  if [[ -z "${SCENARIO_PID}" ]]; then
+    return
+  fi
+
+  if kill -0 "${SCENARIO_PID}" 2>/dev/null; then
+    kill -TERM "${SCENARIO_PID}" 2>/dev/null || true
+    (
+      sleep 5
+      kill -KILL "${SCENARIO_PID}" 2>/dev/null || true
+    ) &
+    terminator_pid="$!"
+  fi
+
+  wait "${SCENARIO_PID}" 2>/dev/null || true
+  if [[ -n "${terminator_pid}" ]]; then
+    kill "${terminator_pid}" 2>/dev/null || true
+    wait "${terminator_pid}" 2>/dev/null || true
+  fi
+  SCENARIO_PID=""
+}
+
+cleanup() {
+  local original_status="$?"
+  local cleanup_failed=0
+
+  trap - EXIT INT TERM
+  set +e
+
+  stop_active_watchdog || cleanup_failed=1
+  stop_active_scenario || cleanup_failed=1
+  project_cleanup_test_owned_data || cleanup_failed=1
+  project_stop_authoritative_system_if_started || cleanup_failed=1
+  remove_run_sandbox || cleanup_failed=1
+
+  if (( original_status != 0 )); then
+    (( cleanup_failed == 1 )) && echo "Original failure preserved; cleanup also failed." >&2
+    exit "${original_status}"
+  fi
+
+  (( cleanup_failed == 0 )) || exit 1
+}
+
+preflight() {
+  [[ "${STATE_TEST_WORKFLOW_ENABLED}" == "1" ]] \
+    || fail "set STATE_TEST_WORKFLOW_ENABLED=1 for this explicit local workflow"
+
+  [[ "${STATE_E2E_FILTER}" =~ ^[A-Za-z0-9_./-]+$ ]] \
+    || fail "STATE_E2E_FILTER must select exactly one safe suite or test"
+
+  [[ "${STATE_E2E_RUN_ID}" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,53}$ ]] \
+    || fail "STATE_E2E_RUN_ID must contain at most 54 safe characters"
+
+  [[ "${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}" =~ ^[1-9][0-9]*$ ]] \
+    || fail "STATE_E2E_SCENARIO_TIMEOUT_SECONDS must be a positive integer"
+
+  project_assert_non_production
+  project_validate_tools
+}
+
+prepare_run_sandbox() {
+  mkdir -p "${RUN_ROOT_BASE}"
+  RUN_ROOT="$(mktemp -d "${RUN_ROOT_BASE}/${STATE_E2E_RUN_ID}.XXXXXX")"
+  CONFIG_PATH="${RUN_ROOT}/config.json"
+  : >"${CONFIG_PATH}"
+  chmod 600 "${CONFIG_PATH}"
+  export STATE_E2E_RUN_ID RUN_ROOT CONFIG_PATH
+}
+
+run_with_watchdog() {
+  local scenario_status=0
+  local timeout_marker="${RUN_ROOT}/scenario-timeout"
+
+  project_run_selected_scenario &
+  SCENARIO_PID="$!"
+
+  (
+    sleep "${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}"
+    if kill -0 "${SCENARIO_PID}" 2>/dev/null; then
+      : >"${timeout_marker}"
+      echo "State E2E scenario timed out after ${STATE_E2E_SCENARIO_TIMEOUT_SECONDS}s" >&2
+      kill -TERM "${SCENARIO_PID}" 2>/dev/null || true
+      sleep 5
+      kill -KILL "${SCENARIO_PID}" 2>/dev/null || true
+    fi
+  ) &
+  WATCHDOG_PID="$!"
+
+  set +e
+  wait "${SCENARIO_PID}"
+  scenario_status="$?"
+  SCENARIO_PID=""
+  stop_active_watchdog
+  set -e
+
+  if [[ -f "${timeout_marker}" ]]; then
+    return 124
+  fi
+  return "${scenario_status}"
+}
+
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+preflight
+prepare_run_sandbox
+project_start_authoritative_system_if_needed
+project_wait_until_ready_if_needed
+project_provision_test_context
+run_with_watchdog

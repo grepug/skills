@@ -1,0 +1,13 @@
+## SwiftUI State-Driven Verification
+
+For meaningful SwiftUI feature work, bug fixes, and delivery review, use
+`$develop-swiftui-with-state-testing` before relying on rendered UI or screenshots.
+
+- Classify touched Views first. Pure Presentation Components are exempt.
+- Keep product behavior behind a production Feature State Seam that tests and SwiftUI drive through the same public intents.
+- Verify semantic state, failure, recovery, completion, and destination without mounting SwiftUI.
+- For each affected critical workflow, run one local headless Product E2E happy path through production adapters to the real authoritative system.
+- Use only the repository's canonical local runner, explicit local gate, exact test filter, bounded async operations, and hard watchdog.
+- Keep generated tests in the ignored scratch test directory. Record evidence, clean run-owned data, and delete scratch source unless it passes the promotion gate.
+- Never run skill-produced tests or helpers in CI. They may compile there.
+- Reserve rendered/manual UI verification for residual layout, gesture, focus, accessibility-runtime, platform-hosting, and wiring risks.
