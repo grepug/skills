@@ -54,6 +54,7 @@ This repo also publishes example GitHub issue templates under `.github/ISSUE_TEM
 
 | Skill | Purpose | Requirements | Status |
 | --- | --- | --- | --- |
+| `develop-swiftui-with-state-testing` | Integrate headless semantic state verification into SwiftUI development, refactoring, local testing, and review | SwiftUI source, `rg`, a local Swift test target, and project-owned runtime commands for Product E2E | Draft |
 | `github-issue-workflow` | Track meaningful work through GitHub Issues, adopting repo-native templates and labels when present or falling back to a portable seed plus execution model | GitHub issue access, repo guidance such as `.github/ISSUE_TEMPLATE/` or docs, and a repo that wants issue-driven execution | Stable |
 | `inline-doc-governance` | Audit and govern inline documentation coverage for repo-owned TypeScript, JavaScript, and Swift files, including file headers, type docs, contract docs, generated-file exclusions, and reusable repo policy setup | Source files to audit, repo guidance to discover local policy, and Python 3 for the deterministic audit helper | Draft |
 | `linear-workflow` | Shape Linear PM/product contracts, apply Linear metadata, discuss product-contract decisions, and link GitHub engineering work when needed | Linear workspace access and source material such as docs, discussion, issues, branches, or PRs | Draft |

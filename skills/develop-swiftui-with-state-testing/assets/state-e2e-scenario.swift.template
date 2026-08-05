@@ -1,0 +1,49 @@
+import Foundation
+import Testing
+@testable import __FEATURE_MODULE__
+
+private enum LocalStateWorkflow {
+    static let isEnabled = ProcessInfo.processInfo.environment[
+        "STATE_TEST_WORKFLOW_ENABLED"
+    ] == "1"
+}
+
+@MainActor
+@Suite(
+    "__USER_OUTCOME__",
+    .enabled(if: LocalStateWorkflow.isEnabled)
+)
+struct __SCENARIO_NAME__ {
+    @Test("__ACCEPTANCE_CLAIM__")
+    func happyPath() async throws {
+        let runtime = try await withOperationDeadline(
+            .system,
+            operation: "prepare authoritative runtime"
+        ) {
+            try await __PROJECT_HARNESS__.startFromProtectedRunConfiguration()
+        }
+
+        let model = await runtime.makeProductionFeatureModel()
+
+        try await withOperationDeadline(
+            .system,
+            operation: "__PUBLIC_USER_INTENT__",
+            lastState: { await model.semanticStateDescription }
+        ) {
+            await model.__PUBLIC_USER_INTENT__()
+        }
+
+        // Assert the minimum stable user-observable outcome.
+        #expect(model.phase == __EXPECTED_SEMANTIC_PHASE__)
+        #expect(model.destination == __EXPECTED_DESTINATION__)
+
+        // Verify a durable result when the user outcome promises one.
+        let durableResult = try await withOperationDeadline(
+            .system,
+            operation: "read authoritative result"
+        ) {
+            try await runtime.__READ_DURABLE_RESULT__()
+        }
+        #expect(durableResult.__STABLE_PREDICATE__)
+    }
+}
