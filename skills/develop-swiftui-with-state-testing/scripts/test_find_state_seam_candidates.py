@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 import tempfile
 import textwrap
@@ -12,6 +13,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).with_name("find-state-seam-candidates.sh")
 
 
+@unittest.skipUnless(shutil.which("rg"), "rg is required by the candidate scanner")
 class CandidateScannerTests(unittest.TestCase):
     def run_scanner(self, root: Path) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
