@@ -36,9 +36,9 @@ _Avoid_: UI E2E, screenshot test, integration smoke
 The production implementation that owns the workflow result, whether it is in-client state, persistence, files, a local service, or an external backend.
 _Avoid_: Backend when no server is required
 
-**Disposable Scenario**:
-Git-ignored Product E2E source generated for one current acceptance claim, removed after evidence and cleanup are recorded.
-_Avoid_: Temporary hack, permanent smoke test
+**Scratch Scenario**:
+Git-ignored, untracked Product E2E source retained in the current worktree after verification until the user authorizes deletion.
+_Avoid_: Temporary hack, disposable test, permanent smoke test
 
 **Test Authentication Bootstrap**:
 A non-production setup mechanism that supplies a temporary authenticated principal or session without claiming to verify interactive sign-in.

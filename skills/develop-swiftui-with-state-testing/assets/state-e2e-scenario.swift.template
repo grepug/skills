@@ -2,6 +2,9 @@ import Foundation
 import Testing
 @testable import __FEATURE_MODULE__
 
+// Keep this generated source in the repository's ignored Scratch test
+// directory until the user explicitly authorizes deletion.
+
 private enum LocalStateWorkflow {
     static let isEnabled = ProcessInfo.processInfo.environment[
         "STATE_TEST_WORKFLOW_ENABLED"

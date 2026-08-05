@@ -10,7 +10,7 @@ Use this reference to choose the local verification layer, write stable assertio
 - [Bound every async operation](#bound-every-async-operation)
 - [Audit Product E2E fidelity](#audit-product-e2e-fidelity)
 - [Bootstrap authentication safely](#bootstrap-authentication-safely)
-- [Keep scenarios disposable](#keep-scenarios-disposable)
+- [Retain Scratch scenarios without committing them](#retain-scratch-scenarios-without-committing-them)
 - [Record verification evidence](#record-verification-evidence)
 - [Hand off residual UI scope](#hand-off-residual-ui-scope)
 
@@ -31,7 +31,7 @@ Do not label controlled-adapter success as proof that the product composition wo
 
 ### Product E2E
 
-Use one disposable Product E2E happy path for each affected critical user workflow at the appropriate development or handoff gate. Drive a complete user outcome through production adapters to its real authoritative system.
+Use one Scratch Product E2E happy path for each affected critical user workflow at the appropriate development or handoff gate. Drive a complete user outcome through production adapters to its real authoritative system.
 
 A critical workflow prevents or materially damages a user outcome when broken, such as:
 
@@ -50,6 +50,7 @@ Every test produced by this skill is local-only.
 
 - Require `STATE_TEST_WORKFLOW_ENABLED=1` or a project-equivalent explicit gate.
 - Put generated State Tests and Product E2E source under the repository's ignored scratch directory by default.
+- Require Scratch source to remain ignored, untracked, and unstaged. Treat a violation as blocking.
 - Keep promoted local regressions behind the same gate.
 - Never edit CI to execute these tests, the runner, or the candidate scanner.
 - Audit CI commands to ensure the gate is absent.
@@ -260,18 +261,34 @@ Require:
 
 If no bootstrap exists, recommend the smallest project-owned non-production adapter. Do not force provider UI automation into this workflow.
 
-## Keep Scenarios Disposable
+## Retain Scratch Scenarios Without Committing Them
 
 Use this lifecycle for generated State Tests and Product E2E scenarios:
 
 ```text
 derive current acceptance claim
-→ generate one ignored scratch scenario
+→ inspect retained Scratch material without trusting it as current evidence
+→ generate or update one ignored Scratch scenario
 → run one exact filter
 → record current evidence
 → clean run-owned product and client state
-→ delete scenario source
+→ retain Scratch source in the worktree
+→ report its path, count, last validated commit, and manual cleanup method
 ```
+
+Do not create a worktree merely for this workflow. Use the current worktree's ignored Scratch directory. The user owns source deletion, commonly by deleting that worktree. An agent may delete Scratch source only when the user explicitly authorizes that deletion in the current request.
+
+Before reporting success, verify every Scratch source path:
+
+```bash
+git check-ignore --quiet -- "${scenario_path}"
+! git ls-files --error-unmatch -- "${scenario_path}" >/dev/null 2>&1
+! git diff --cached --name-only -- "${scenario_path}" | rg -q .
+```
+
+If any check fails, keep the source, remove it from staging if necessary, add or repair the narrow ignore rule when mutation is authorized, and report verification as blocked until all three conditions hold. Never use `git add -f` for Scratch source.
+
+Treat retained Scratch scenarios as debugging material, not evergreen proof. Before reuse, compare the current acceptance claim, public intents, production adapters, authoritative system, and semantic assertions; update the scenario as needed and rerun it against the current commit.
 
 Promote a scenario only when all are true:
 
@@ -281,7 +298,9 @@ Promote a scenario only when all are true:
 - no lower layer detects the failure faithfully; and
 - ownership and diagnostics are clear.
 
-When a disposable scenario finds a defect, first add the smallest local regression at the lowest faithful layer. Keep full Product E2E only for composition-dependent failures.
+Promotion also requires explicit user approval. Rewrite or move the behavior into the maintained test suite and review it as committed test code; do not force-add the ignored Scratch file.
+
+When a Scratch scenario finds a defect, first add the smallest local regression at the lowest faithful layer. Keep full Product E2E only for composition-dependent failures.
 
 ## Record Verification Evidence
 
@@ -310,12 +329,15 @@ Command:
 `<exact local runner command>`
 
 Result: `PASS | FAIL | BLOCKED`
-Cleanup: `PASS | FAIL`
+Runtime cleanup: `PASS | FAIL`
 
 Not covered:
 - `<residual rendered/platform behavior>`
 
-Scratch scenario: `deleted | retained with reason`
+Scratch sources: `<paths and file count>`
+Scratch git state: `ignored, untracked, unstaged | BLOCKED`
+Last validated commit: `<sha>`
+Source cleanup: `retained; remove with worktree | retained; explicit paths for manual removal`
 Promotion decision: `<decision and reason>`
 ```
 

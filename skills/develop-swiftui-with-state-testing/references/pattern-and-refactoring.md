@@ -350,6 +350,6 @@ Use this sequence:
 7. Keep long-lived observation behind explicit start/stop intents and observable state.
 8. Turn the original View into a translation-only Container plus Presentation Components.
 9. Add the smallest local State Test needed for deterministic branches.
-10. Create one disposable Product E2E happy path when the workflow is critical.
+10. Create one retained, Git-ignored Scratch Product E2E happy path when the workflow is critical.
 
 Do not expose private implementation, add test-only product branches, or redesign unrelated features merely to satisfy the audit.

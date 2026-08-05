@@ -3,7 +3,9 @@ set -euo pipefail
 umask 077
 
 # Copy this template into the adopting repository and replace the project_*
-# hooks. Delete hooks the project does not need. Keep this runner local-only.
+# hooks. Delete hooks the project does not need. Commit the runner as project
+# infrastructure, but invoke it only locally. It must never delete Scratch test
+# source.
 
 STATE_TEST_WORKFLOW_ENABLED="${STATE_TEST_WORKFLOW_ENABLED:-}"
 STATE_E2E_FILTER="${STATE_E2E_FILTER:-}"

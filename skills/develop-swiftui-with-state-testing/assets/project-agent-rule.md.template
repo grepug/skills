@@ -8,6 +8,9 @@ For meaningful SwiftUI feature work, bug fixes, and delivery review, use
 - Verify semantic state, failure, recovery, completion, and destination without mounting SwiftUI.
 - For each affected critical workflow, run one local headless Product E2E happy path through production adapters to the real authoritative system.
 - Use only the repository's canonical local runner, explicit local gate, exact test filter, bounded async operations, and hard watchdog.
-- Keep generated tests in the ignored scratch test directory. Record evidence, clean run-owned data, and delete scratch source unless it passes the promotion gate.
+- Keep generated tests in the ignored scratch test directory. Record evidence and clean run-owned runtime data, but retain Scratch source locally until the user authorizes deletion.
+- Treat Scratch source that is not ignored, is tracked, or is staged as a blocking failure. Never force-add it; promotion requires explicit user approval and migration into the maintained test suite.
+- Treat retained Scratch tests as reusable material, not current evidence: recheck the acceptance claim and rerun against the current commit.
+- Report retained paths, file count, last validated commit, and whether cleanup happens by deleting the worktree or removing explicit paths.
 - Never run skill-produced tests or helpers in CI. They may compile there.
 - Reserve rendered/manual UI verification for residual layout, gesture, focus, accessibility-runtime, platform-hosting, and wiring risks.

@@ -1,6 +1,6 @@
 # Runner Contract
 
-Use this reference to create or audit the one canonical repo-owned command that executes local State Tests and disposable Product E2E scenarios.
+Use this reference to create or audit the one canonical repo-owned command that executes local State Tests and retained Git-ignored Product E2E scenarios.
 
 ## Contents
 
@@ -25,7 +25,7 @@ scripts/run-swiftui-state-e2e
 
 Require one exact suite/test filter. Do not run every ignored or promoted local scenario implicitly.
 
-The runner is permanent project infrastructure. Business scenarios remain ignored and disposable.
+The runner is permanent project infrastructure. Business scenarios remain ignored, uncommitted, and retained in the worktree until user-authorized deletion.
 
 ## Keep the Runner Project-Specific
 
@@ -61,6 +61,8 @@ Implement these steps in order:
 12. Clean exact run-owned product data and client files.
 13. Stop only processes started by this run.
 14. Report cleanup failure separately without hiding the original test failure.
+
+Runner cleanup covers processes, credentials, run-owned product data, client files, and the run sandbox. It must never delete or mutate Scratch test source.
 
 ## Support Client-Only Products
 
@@ -132,5 +134,6 @@ Before declaring the runner ready:
 9. Confirm client files and run-owned product data are removed.
 10. Confirm a reused external system is not stopped.
 11. Inspect CI configuration and confirm the gate cannot be activated.
+12. Confirm successful, failed, timed-out, and signaled runs leave Scratch source unchanged.
 
 Record any unavailable validation as a blocker. Do not substitute a screenshot or controlled-adapter pass for missing Product E2E evidence.
