@@ -16,6 +16,7 @@ import unittest
 from unittest.mock import patch
 
 import wda_inventory as inventory
+import iphone_use_call as caller
 
 
 CALL_SCRIPT = Path(__file__).with_name("iphone_use_call.py")
@@ -120,6 +121,37 @@ class InventoryTests(unittest.TestCase):
                     self.assertEqual(inventory.main(), 1)
                 self.assertEqual(output.read_bytes(), before)
 
+    def test_truncated_http_response_does_not_abort_other_endpoint_evidence(self):
+        class Handler(BaseHTTPRequestHandler):
+            protocol_version = "HTTP/1.1"
+            def do_GET(self):
+                self.send_response(200)
+                self.send_header("Connection", "close")
+                if self.path == "/broken/status":
+                    self.send_header("Transfer-Encoding", "chunked")
+                    self.end_headers()
+                    self.wfile.write(b"10\r\nshort")
+                else:
+                    self.end_headers()
+                    self.wfile.write(b'{"value":{"ready":true}}')
+                self.close_connection = True
+            def log_message(self, *args):
+                pass
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}"
+            with patch.object(inventory, "run_command", return_value=("", None)):
+                report = inventory.collect([], [url + "/broken", url])
+            self.assertIn("IncompleteRead", report["endpoints"][0]["error"])
+            self.assertTrue(report["endpoints"][1]["status"]["value"]["ready"])
+            self.assertFalse(report["identity_verified"])
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=2)
+
     def test_partial_inventory_is_saved_with_incomplete_exit_code(self):
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "partial.json"
@@ -147,13 +179,17 @@ class Runtime:
     def __init__(self, state_dir, url):
         self.state_dir, self.url = state_dir, url
     def call(self, tool, arguments):
+        self.close_error = arguments.get("fixture_close_error", False)
+        if arguments.get("fixture_local_error"):
+            raise OSError("session persistence failed after action")
         if tool == "pua_tap":
             raise PUAError()
         if tool == "pua_ready":
             return {"ready": False, "state": "recovering"}
         return {"state_dir": self.state_dir, "url": self.url, "arguments": arguments}
     def close(self):
-        pass
+        if getattr(self, "close_error", False):
+            raise OSError("cleanup failed")
 ''')
 
     def invoke(self, tool, payload):
@@ -189,6 +225,90 @@ class Runtime:
                 result = self.invoke(tool, payload)
                 self.assertEqual(result.returncode, 1)
                 self.assertIn("error", json.loads(result.stdout))
+
+    def test_post_call_error_and_cleanup_error_preserve_uncertainty(self):
+        result = self.invoke("pua_setup", json.dumps({"fixture_local_error": True, "fixture_close_error": True}))
+        self.assertEqual(result.returncode, 1)
+        response = json.loads(result.stdout)
+        self.assertTrue(response["error"]["uncertain"])
+        self.assertNotIn("action_executed", response["error"])
+        self.assertIn("session persistence", response["error"]["message"])
+        self.assertIn("cleanup_error", response)
+
+    def test_cleanup_error_does_not_replace_original_pua_error(self):
+        result = self.invoke("pua_tap", json.dumps({"fixture_close_error": True}))
+        response = json.loads(result.stdout)
+        self.assertEqual(response["error"]["code"], "uncertain_action")
+        self.assertTrue(response["error"]["action_executed"])
+        self.assertIn("cleanup_error", response)
+
+
+class ContinuationTests(unittest.TestCase):
+    class PuaError(Exception):
+        def as_dict(self):
+            return {"code": "input_failed", "uncertain": True, "characters_confirmed": 4}
+
+    class Runtime:
+        def __init__(self, responses):
+            self.responses = list(responses)
+            self.calls = []
+        def call(self, tool, arguments):
+            self.calls.append((tool, arguments))
+            result = self.responses.pop(0)
+            if isinstance(result, Exception):
+                raise result
+            return result
+
+    def pending(self, token, characters=2):
+        return {"input_complete": False, "action_executed": True, "continue_token": token, "characters": characters, "remaining_characters": 2, "next_step": "continue token"}
+
+    def test_long_input_uses_same_runtime_and_only_each_returned_token(self):
+        runtime = self.Runtime([self.pending("first"), self.pending("second", 4), {"action_complete": True, "characters": 6}])
+        arguments = {"text": "abcdef", "replace": False}
+        result = caller.call_operation(runtime, "pua_type_text", arguments, self.PuaError)
+        self.assertTrue(result["action_complete"])
+        self.assertEqual(runtime.calls, [("pua_type_text", arguments), ("pua_type_text", {"continue_token": "first"}), ("pua_type_text", {"continue_token": "second"})])
+
+    def test_batch_finishes_input_without_replaying_prior_or_remaining_steps(self):
+        batch = {"completed_steps": 1, "stopped_at": 1, "stop_reason": "input_continues", "results": [{"tapped": True}, self.pending("batch-token")], "complete": False}
+        runtime = self.Runtime([batch, {"action_complete": True, "characters": 4}])
+        arguments = {"steps": [{"op": "tap"}, {"op": "type_text"}, {"op": "tap"}]}
+        result = caller.call_operation(runtime, "pua_batch", arguments, self.PuaError)
+        self.assertEqual(result["completed_steps"], 2)
+        self.assertEqual(result["stopped_at"], 1)
+        self.assertEqual(result["stop_reason"], "input_completed")
+        self.assertFalse(result["complete"])
+        self.assertEqual(runtime.calls, [("pua_batch", arguments), ("pua_type_text", {"continue_token": "batch-token"})])
+        self.assertNotIn("continue_token", json.dumps(result))
+
+    def test_final_batch_input_marks_complete_but_unverified_submit_still_stops(self):
+        for submitted, expected_complete in ((False, True), (True, False)):
+            with self.subTest(submitted=submitted):
+                batch = {"completed_steps": 0, "stopped_at": 0, "stop_reason": "input_continues", "results": [self.pending("token")], "complete": False}
+                runtime = self.Runtime([batch, {"action_complete": True, "submitted": submitted, "submission_verified": False}])
+                result = caller.call_operation(runtime, "pua_batch", {"steps": [{"op": "type_text"}]}, self.PuaError)
+                self.assertEqual(result["complete"], expected_complete)
+                if submitted:
+                    self.assertEqual(result["stop_reason"], "submission_requires_verification")
+                else:
+                    self.assertNotIn("stop_reason", result)
+
+    def test_failed_continuation_preserves_progress_without_unusable_token(self):
+        runtime = self.Runtime([self.pending("token"), self.PuaError()])
+        result = caller.call_operation(runtime, "pua_type_text", {"text": "abcdef"}, self.PuaError)
+        self.assertEqual(result["error"]["characters_confirmed"], 4)
+        self.assertEqual(result["input_progress"]["characters"], 2)
+        self.assertNotIn("continue_token", json.dumps(result))
+        self.assertEqual(len(runtime.calls), 2)
+
+    def test_budget_stop_returns_progress_not_a_dead_token(self):
+        runtime = self.Runtime([self.pending("token")])
+        with patch.object(caller.time, "monotonic", side_effect=[0, 601]):
+            result = caller.call_operation(runtime, "pua_type_text", {"text": "abcdef"}, self.PuaError)
+        self.assertEqual(result["error"]["code"], "input_continuation_stopped")
+        self.assertFalse(result["input_complete"])
+        self.assertNotIn("continue_token", json.dumps(result))
+        self.assertEqual(len(runtime.calls), 1)
 
 
 if __name__ == "__main__":

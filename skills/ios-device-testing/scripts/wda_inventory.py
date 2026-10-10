@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import http.client
 import json
 import os
 from pathlib import Path
@@ -130,7 +131,7 @@ def probe_endpoint(url: str) -> dict:
         if not isinstance(document, dict):
             raise ValueError("status is not a JSON object")
         result["status"] = document
-    except (OSError, ValueError, urllib.error.URLError) as error:
+    except (OSError, ValueError, urllib.error.URLError, http.client.HTTPException) as error:
         result["error"] = redact(str(error))
     return result
 

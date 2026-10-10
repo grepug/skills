@@ -55,4 +55,8 @@ python3 "$skill_root/scripts/iphone_use_call.py" \
 
 先把实际参数写入 `/tmp/ios-pua-arguments.json`，例如 status 请求。每次仅执行一个命名工具；不要重写 HTTP 客户端或另开裸 WDA 会话控制同一手机。CLI 返回的图片在 JSON 的 image.path 中，必须用图片工具真正查看；base64、路径或预览标题不等于模型看过图。
 
+长输入的 continue_token 只在当前 Runtime 内存中有效，不能复制到下次 CLI 调用。文件入口会在同一 Runtime 中只带 token 续传，直到完成或明确错误；最多续传 64 次，10 分钟后不再发起下一次续传，当前已发出的调用仍等其有界结果。通过可轮询的后台执行跟踪长调用，每次等待不超过 60 秒，不为查看进度中断进程。达到边界或失败时保留输入进度，读取实际字段后只补确认缺失部分，不重发原文。
+
+batch 因长输入暂停时，文件入口先在同一 Runtime 完成该输入，再返回更新后的 results/completed_steps。`stop_reason="input_completed"` 表示 stopped_at 的输入已完成，只发送其后的步骤；提交仍需验收时遵循 `submission_requires_verification`。不会重放之前步骤或自动提交额外动作。调用后的本地错误保留 `uncertain=true`；cleanup_error 不否定已返回的动作证据，不能据此重放。
+
 `local.pid.0`、前台不可用或 XCTest Code 41 按官方 READY 恢复流程排查。恢复允许范围还受本任务归属约束：以前聊天启动的 owned job 或外部服务不能因为插件能停止它就自动停止。归属不明时先诊断并请求协调，不按端口杀进程。
