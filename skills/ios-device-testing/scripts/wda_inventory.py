@@ -29,6 +29,16 @@ def redact(value: str) -> str:
     return re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[redacted email]", value)
 
 
+def redact_values(value):
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, dict):
+        return {key: redact_values(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [redact_values(item) for item in value]
+    return value
+
+
 def run_command(argv: list[str]) -> tuple[str, str | None]:
     try:
         result = subprocess.run(argv, capture_output=True, text=True, timeout=8, check=False)
@@ -98,7 +108,7 @@ def read_runtime(directory: Path) -> dict:
     except OSError as error:
         evidence["errors"].append(redact(f"jobs: {error}"))
     evidence["records_are_not_live_proof"] = True
-    return evidence
+    return redact_values(evidence)
 
 
 def endpoint_url(value: str) -> str:

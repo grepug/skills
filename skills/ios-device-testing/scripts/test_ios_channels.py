@@ -58,6 +58,41 @@ class InventoryTests(unittest.TestCase):
         self.assertEqual(len(report["collection_errors"]), 2)
         self.assertFalse(report["identity_verified"])
 
+    def test_exported_runtime_strings_are_redacted_in_stdout_and_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            directory = Path(temporary) / "runtime"
+            directory.mkdir()
+            (directory / "jobs").mkdir()
+            config_path = directory / "config.json"
+            job_path = directory / "jobs/job.json"
+            config_path.write_text(json.dumps({"udid": "PHONE-A", "local_port": 18100, "source_dir": "https://fixture-user:fixture-config-password@example.com/wda"}))
+            job_path.write_text(json.dumps({
+                "id": "job-a", "pid": 12345, "state": "running",
+                "base_url": "http://fixture-user:fixture-url-password@127.0.0.1:18100",
+                "worker_entrypoint": "python3 /tmp/wda.py --token fixture-worker-token",
+                "config": {"udid": "PHONE-A", "local_port": 18100, "source_dir": {"links": ["https://fixture-user:fixture-nested-password@example.com/wda"]}},
+            }))
+            original = (config_path.read_bytes(), job_path.read_bytes())
+            for output_mode in ("stdout", "file"):
+                with self.subTest(output=output_mode):
+                    output = Path(temporary) / "report.json"
+                    argv = ["wda_inventory.py", "--state-dir", str(directory)]
+                    if output_mode == "file":
+                        argv.extend(["--output", str(output)])
+                    captured = io.StringIO()
+                    with patch.object(sys, "argv", argv), patch.object(inventory, "run_command", return_value=("", None)), contextlib.redirect_stdout(captured):
+                        self.assertEqual(inventory.main(), 0)
+                    exported = output.read_text() if output_mode == "file" else captured.getvalue()
+                    for credential in ("fixture-user", "fixture-config-password", "fixture-url-password", "fixture-worker-token", "fixture-nested-password"):
+                        self.assertNotIn(credential, exported)
+                    report = json.loads(exported)
+                    runtime = report["runtimes"][0]
+                    self.assertEqual(runtime["config"]["udid"], "PHONE-A")
+                    self.assertEqual(runtime["config"]["local_port"], 18100)
+                    self.assertEqual(runtime["jobs"][0]["pid"], 12345)
+                    self.assertIn("127.0.0.1:18100", runtime["jobs"][0]["base_url"])
+                    self.assertEqual((config_path.read_bytes(), job_path.read_bytes()), original)
+
     def test_malformed_runtime_is_reported_and_not_created(self):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary) / "missing"
