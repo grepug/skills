@@ -60,6 +60,8 @@ This repo also publishes example GitHub issue templates under `.github/ISSUE_TEM
 | `ios-device-testing` | Set up iPhone use for physical iPhones and Appium-managed WDA for simulators; build, test, and troubleshoot multiple WDA instances without disturbing other tasks | macOS, full Xcode, xcodebuildmcp CLI, Python 3; iPhone use for devices or Appium XCUITest Driver for simulators | Draft |
 | `linear-workflow` | Shape Linear PM/product contracts, apply Linear metadata, discuss product-contract decisions, and link GitHub engineering work when needed | Linear workspace access and source material such as docs, discussion, issues, branches, or PRs | Draft |
 | `macos-dev-storage-cleanup` | Measure reclaimable macOS developer storage, generate an explicit cleanup plan, apply only approved cleanup items, and verify final disk space | macOS for live cleanup, Python 3 for bundled scripts, and explicit user approval before deletion | Draft |
+| `memobird-layout` | Lay out 576-dot thermal receipts and check local PDF/BMP previews without submitting print jobs | Python 3, macOS 14+, explicit MemobirdRenderer path (installed or built from memobird-print) | Draft |
+| `memobird-print` | Render and print with the MEMOBIRD G4HD C service, preserving idempotency and uncertain-result handling; includes portable service source | Configured local/remote service; macOS 14+, Xcode/Swift 6.2+, Python 3 and XcodeBuildMCP to rebuild | Draft |
 | `module-boundary-governance` | Define and audit module boundary manifests so larger changes keep clear ownership, public API, and dependency direction | Existing repo structure or architecture docs, boundary-sensitive change, and a planning workflow such as `plan-driven-change` | Stable |
 | `plan-driven-change` | Approval-gated, plan-first workflow for larger multi-file or architectural changes | Project docs, known build/lint/test commands, user approval before implementation | Stable |
 | `xcode-archive-release` | Bump app version/build, archive an Xcode project, and upload to App Store Connect | macOS, Xcode, Apple Developer account, signed project | Stable |
@@ -85,3 +87,23 @@ python3 scripts/quick_validate_skill.py skills/<slug>
 # Validate the full catalog
 python3 scripts/validate_skills.py
 ```
+
+## Memobird printing and layout
+
+Install either skill after it reaches the default branch:
+
+```sh
+npx skills add grepug/skills --skill memobird-print
+npx skills add grepug/skills --skill memobird-layout
+```
+
+Before merge, check out the PR branch and install from that local clone:
+
+```sh
+git clone --branch add-memobird-print-layout https://github.com/grepug/skills.git
+cd skills
+npx skills add . --skill memobird-print
+npx skills add . --skill memobird-layout
+```
+
+Skill installation does not install the printing service. See [service installation and offline checks](skills/memobird-print/references/installation.md) for bundled source, dependencies and explicit build/install commands. See [offline layout](skills/memobird-layout/SKILL.md) for PDF/BMP previews that bypass the service. `memobird-layout` is extracted from the original print skill and receipt CSS, rather than a second historical installation. No printer, job or user content is bundled. [Publication checks and limits](skills/memobird-print/references/publication-validation.md) record what was verified without printing.

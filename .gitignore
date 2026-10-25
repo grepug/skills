@@ -1,1 +1,7 @@
 .DS_Store
+
+# Local skill build and preview products
+__pycache__/
+*.pyc
+.build/
+.swiftpm/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "咕咕机打印"
+  short_description: "排版预览并在明确授权后通过本机或远程服务打印"
+  default_prompt: "使用 $memobird-print 准备并预览这份内容；仅在已有明确打印授权时提交打印。"
