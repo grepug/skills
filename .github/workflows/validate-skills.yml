@@ -21,3 +21,11 @@ jobs:
 
       - name: Validate skill catalog
         run: python3 scripts/validate_skills.py
+
+      - name: Set up Node.js for standalone image CLI tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Test Sub2API image skill with local mock HTTP
+        run: node --test skills/sub2api-imagegen/scripts/sub2api-imagegen.test.mjs
