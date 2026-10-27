@@ -2,10 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, statSync,
-  readdirSync, cpSync, symlinkSync } from 'node:fs';
+  readdirSync, cpSync, symlinkSync, truncateSync, chmodSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, extname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
 import { once } from 'node:events';
@@ -40,13 +40,22 @@ function cli(home, args, { script = CLI, env = {}, onStart } = {}) {
     onStart?.(child);
   });
 }
-async function server(t, handler) {
+async function server(t, handler, { onHeaders } = {}) {
   const requests = [];
   const srv = createServer(async (req, res) => {
-    let raw = '';
-    for await (const chunk of req) raw += chunk;
-    requests.push({ url: req.url, auth: req.headers.authorization, method: req.method, body: JSON.parse(raw || '{}') });
-    handler(req, res, requests);
+    const request = { url: req.url, auth: req.headers.authorization, method: req.method,
+      contentType: req.headers['content-type'] };
+    requests.push(request);
+    if (onHeaders?.(req, res, requests)) return;
+    try {
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      request.raw = Buffer.concat(chunks);
+      if (request.contentType?.startsWith('multipart/form-data;')) {
+        request.form = await new Response(request.raw, { headers: { 'content-type': request.contentType } }).formData();
+      } else request.body = JSON.parse(request.raw.toString('utf8') || '{}');
+      handler(req, res, requests);
+    } catch (error) { if (!req.destroyed) res.destroy(error); }
   });
   srv.listen(0, '127.0.0.1');
   await once(srv, 'listening');
@@ -54,11 +63,16 @@ async function server(t, handler) {
   return { base: `http://127.0.0.1:${srv.address().port}`, requests };
 }
 function image(res, ext = 'png') { res.end(JSON.stringify({ data: [{ b64_json: fixtures[ext] }] })); }
+function reference(home, ext = 'png', name = `input.${ext}`) {
+  const path = join(home, name);
+  writeFileSync(path, Buffer.from(fixtures[ext], 'base64'));
+  return path;
+}
 function safeError(result, code) {
   assert.notEqual(result.code, 0);
   assert.equal(JSON.parse(result.stderr).error, code);
   assert.ok(!result.stdout.includes(SECRET) && !result.stderr.includes(SECRET));
-  assert.ok(!result.stderr.includes(' at '));
+  assert.doesNotMatch(result.stderr, /\n\s+at /);
 }
 
 test('first init opens a blank local template; repeat preserves content and permissions', async t => {
@@ -131,8 +145,158 @@ test('base URLs support optional /v1 and prefixes, with sensitive URL parts reje
     assert.equal(endpoint(`https://example.invalid${suffix}`), 'https://example.invalid/v1/images/generations');
   assert.equal(endpoint('https://example.invalid/router/v1/'), 'https://example.invalid/router/v1/images/generations');
   assert.equal(endpoint('https://example.invalid/router'), 'https://example.invalid/router/v1/images/generations');
+  assert.equal(endpoint('https://example.invalid/router/v1/', 'edits'), 'https://example.invalid/router/v1/images/edits');
   for (const bad of ['http://example.invalid', 'https://u:p@example.invalid', 'https://example.invalid/?token=x', 'https://example.invalid/#x', 'file:///tmp/x'])
     assert.throws(() => endpoint(bad));
+});
+
+test('single reference selects edits and uses actual bytes/MIME for every supported format', async t => {
+  const home = workspace(t);
+  const api = await server(t, (_req, res) => image(res)); config(home, `${api.base}/router/v1/`);
+  for (const [index, ext] of ['png', 'jpg', 'webp'].entries()) {
+    const path = reference(home, ext, `${SECRET}-${index}.wrong-extension`);
+    const result = await cli(home, ['generate', '--prompt', 'Use this composition', '--image', path]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.ok(!result.stdout.includes(SECRET));
+    const request = api.requests[index];
+    assert.equal(request.url, '/router/v1/images/edits');
+    assert.equal(request.auth, `Bearer ${SECRET}`);
+    assert.ok(request.contentType.startsWith('multipart/form-data; boundary='));
+    assert.deepEqual([...request.form.keys()], ['model', 'prompt', 'n', 'size', 'quality', 'response_format', 'background', 'image[]']);
+    const file = request.form.get('image[]');
+    assert.equal(file.name, `reference-1.${ext}`);
+    assert.equal(file.type, { png: 'image/png', jpg: 'image/jpeg', webp: 'image/webp' }[ext]);
+    assert.deepEqual(Buffer.from(await file.arrayBuffer()), Buffer.from(fixtures[ext], 'base64'));
+    assert.ok(!request.raw.includes(Buffer.from(path)));
+  }
+  assert.equal(api.requests.length, 3);
+});
+
+test('repeat --image preserves multipart order and common options without sending a mask', async t => {
+  const home = workspace(t);
+  const api = await server(t, (_req, res) => image(res)); config(home, api.base);
+  const extensions = ['webp', 'png', 'jpg'];
+  const images = extensions.map(ext => reference(home, ext));
+  const result = await cli(home, ['generate', '--image', images[0], '--prompt', 'Combine the subject and palette',
+    '--image', images[1], '--aspect-ratio', '9:16', '--background', 'opaque', '--image', images[2]]);
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(api.requests.length, 1);
+  const { form, url } = api.requests[0];
+  assert.equal(url, '/v1/images/edits');
+  assert.deepEqual(Object.fromEntries([...form].filter(([, value]) => typeof value === 'string')), {
+    model: 'gpt-image-2', prompt: 'Combine the subject and palette', n: '1', size: '864x1536',
+    quality: 'low', response_format: 'b64_json', background: 'opaque',
+  });
+  const files = form.getAll('image[]');
+  assert.equal(files.length, 3);
+  for (let index = 0; index < files.length; index++) {
+    assert.equal(files[index].name, `reference-${index + 1}.${extensions[index]}`);
+    assert.deepEqual(Buffer.from(await files[index].arrayBuffer()), readFileSync(images[index]));
+  }
+  assert.ok(!form.has('mask') && !form.has('image') && !form.has('images'));
+});
+
+test('invalid paths/types/symlinks, unreadable files and client size/count limits send no request', async t => {
+  const home = workspace(t);
+  const api = await server(t, (_req, res) => image(res)); config(home, api.base);
+  const valid = reference(home);
+  const link = join(home, 'linked.png'); symlinkSync(valid, link);
+  const invalid = join(home, `${SECRET}.png`); writeFileSync(invalid, SECRET);
+  const truncated = join(home, 'truncated.png'); writeFileSync(truncated, readFileSync(valid).subarray(0, -1));
+  const big = join(home, 'too-large.png'); writeFileSync(big, ''); truncateSync(big, 20 * 1024 * 1024 + 1);
+  const empty = join(home, 'empty.png'); writeFileSync(empty, '');
+  const denied = reference(home, 'jpg', 'unreadable.jpg'); chmodSync(denied, 0);
+  const cases = [
+    [['relative.png'], 'invalid_references'], [['https://example.invalid/input.png'], 'invalid_references'],
+    [[home], 'invalid_references'], [[link], 'invalid_references'], [[invalid], 'invalid_reference_image'],
+    [[truncated], 'invalid_reference_image'], [[join(home, 'missing.png')], 'reference_unreadable'],
+    [[big], 'reference_too_large'], [[empty], 'reference_too_large'],
+    [[valid, valid, valid, valid, valid, valid], 'invalid_references'],
+  ];
+  if (process.getuid?.() !== 0) cases.push([[denied], 'reference_unreadable']);
+  const oversizedTotal = ['a', 'b', 'c'].map(name => {
+    const path = join(home, `${name}.png`); writeFileSync(path, ''); truncateSync(path, 18 * 1024 * 1024); return path;
+  });
+  cases.push([oversizedTotal, 'reference_too_large']);
+  for (const [paths, code] of cases) {
+    const result = await cli(home, ['generate', '--prompt', 'cat', ...paths.flatMap(path => ['--image', path])]);
+    safeError(result, code);
+    assert.ok(!result.stderr.includes(home));
+  }
+  assert.equal(api.requests.length, 0);
+});
+
+test('replacement with a symlink immediately before open is refused before networking', async t => {
+  const home = workspace(t);
+  const api = await server(t, (_req, res) => image(res)); config(home, api.base);
+  const input = reference(home);
+  const privateFile = join(home, 'private.png'); writeFileSync(privateFile, SECRET);
+  const preload = join(home, 'replace-before-open.mjs');
+  writeFileSync(preload, `import fs from 'node:fs'; import { syncBuiltinESMExports } from 'node:module';
+    const original = fs.openSync;
+    fs.openSync = function(path, ...args) {
+      if (String(path).endsWith('/input.png')) { fs.unlinkSync(path); fs.symlinkSync(${JSON.stringify(privateFile)}, path); }
+      return original.call(this, path, ...args);
+    }; syncBuiltinESMExports();`);
+  const result = await cli(home, ['generate', '--prompt', 'cat', '--image', input], {
+    env: { NODE_OPTIONS: `--import=${pathToFileURL(preload).href}` },
+  });
+  safeError(result, 'reference_unreadable');
+  assert.equal(api.requests.length, 0);
+});
+
+test('HTTP/response/redirect failure after upload stays one request and exposes no file content', async t => {
+  const home = workspace(t);
+  let respond;
+  const target = await server(t, (_req, res) => image(res));
+  const api = await server(t, (_req, res) => respond(res)); config(home, api.base);
+  const input = reference(home);
+  const cases = [
+    ['provider_http_503', res => { res.writeHead(503); res.end(SECRET + fixtures.png); }],
+    ['invalid_response', res => res.end(SECRET + fixtures.png)],
+    ['redirect_refused', res => { res.writeHead(307, { location: `${target.base}/stolen` }); res.end(); }],
+  ];
+  for (const [code, handler] of cases) {
+    respond = handler;
+    const result = await cli(home, ['generate', '--prompt', 'cat', '--image', input]);
+    safeError(result, code); assert.ok(!result.stderr.includes(fixtures.png));
+  }
+  assert.equal(api.requests.length, cases.length); assert.equal(target.requests.length, 0);
+  assert.ok(api.requests.every(request => request.url === '/v1/images/edits'));
+});
+
+test('timeout, cancellation and network failure during a stalled multipart upload never resubmit', async t => {
+  const home = workspace(t);
+  // Insert legal JPEG comment segments so the upload exceeds socket buffers while
+  // retaining a complete tiny decoded image. No large external fixture is needed.
+  const original = Buffer.from(fixtures.jpg, 'base64');
+  const comment = Buffer.alloc(65537); comment[0] = 0xff; comment[1] = 0xfe; comment.writeUInt16BE(65535, 2);
+  const input = join(home, 'large.jpg');
+  writeFileSync(input, Buffer.concat([original.subarray(0, 2), ...Array(256).fill(comment), original.subarray(2)]));
+  let mode, currentChild;
+  const received = [];
+  const api = await server(t, () => assert.fail('A stalled upload must not finish'), {
+    onHeaders(req) {
+      req.pause();
+      const record = { declared: Number(req.headers['content-length']), received: 0 }; received.push(record);
+      setTimeout(() => {
+        record.received = req.socket.bytesRead;
+        if (mode === 'network') req.socket.destroy(new Error(SECRET));
+        else if (mode !== 'timeout') currentChild.kill(mode);
+      }, 20);
+      return true;
+    },
+  });
+  config(home, api.base);
+  for (mode of ['timeout', 'SIGINT', 'SIGTERM', 'network']) {
+    const result = await cli(home, ['generate', '--prompt', 'cat', '--image', input,
+      '--timeout-seconds', mode === 'timeout' ? '0.15' : '5'], { onStart: child => { currentChild = child; } });
+    safeError(result, mode === 'timeout' ? 'timeout' : mode === 'network' ? 'network_error' : 'cancelled');
+    assert.ok(!result.stderr.includes(home));
+  }
+  assert.equal(api.requests.length, 4);
+  assert.ok(api.requests.every(request => request.url === '/v1/images/edits'));
+  assert.ok(received.every(record => record.received > 0 && record.received < record.declared));
 });
 
 test('mock API receives one supported request; output format and bytes match PNG/JPEG/WebP', async t => {
@@ -290,6 +454,11 @@ test('complete skill works after copying to an unrelated directory, without a pa
   const result = await cli(home, ['generate', '--prompt', 'cat'], { script });
   assert.equal(result.code, 0, result.stderr);
   assert.ok(statSync(JSON.parse(result.stdout).path).isFile());
+  const withReference = await cli(home, ['generate', '--prompt', 'Use this reference', '--image', reference(home)], { script });
+  assert.equal(withReference.code, 0, withReference.stderr);
+  assert.equal(api.requests.length, 2);
+  assert.equal(api.requests[1].url, '/v1/images/edits');
+  assert.deepEqual(Buffer.from(await api.requests[1].form.get('image[]').arrayBuffer()), Buffer.from(fixtures.png, 'base64'));
 });
 
 test('a symlinked skill installation executes its CLI rather than silently exiting', async t => {

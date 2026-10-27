@@ -64,7 +64,7 @@ This repo also publishes example GitHub issue templates under `.github/ISSUE_TEM
 | `memobird-print` | Render and print with the MEMOBIRD G4HD C service, preserving idempotency and uncertain-result handling; includes portable service source | Configured local/remote service; macOS 14+, Xcode/Swift 6.2+, Python 3 and XcodeBuildMCP to rebuild | Draft |
 | `module-boundary-governance` | Define and audit module boundary manifests so larger changes keep clear ownership, public API, and dependency direction | Existing repo structure or architecture docs, boundary-sensitive change, and a planning workflow such as `plan-driven-change` | Stable |
 | `plan-driven-change` | Approval-gated, plan-first workflow for larger multi-file or architectural changes | Project docs, known build/lint/test commands, user approval before implementation | Stable |
-| `sub2api-imagegen` | Generate local images through a user-configured Sub2API endpoint, including private first-run configuration | Node.js 20.3+, macOS/Linux, a Sub2API base URL and API key | Draft |
+| `sub2api-imagegen` | Generate local images from text or authorized local reference images through a user-configured Sub2API endpoint, including private first-run configuration | Node.js 20.3+, macOS/Linux, a Sub2API base URL and API key | Draft |
 | `xcode-archive-release` | Bump app version/build, archive an Xcode project, and upload to App Store Connect | macOS, Xcode, Apple Developer account, signed project | Stable |
 
 ## Authoring rules
