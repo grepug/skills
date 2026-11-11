@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { inspectGeneratedImage } from './image.mjs';
 
+const DEFAULT_MODEL = 'gpt-image-2.6-sunburst';
 const CONFIG_DIR = '.sub2api-imagegen';
 const TEMPLATE = '# Local plaintext credentials: keep private; never commit or paste into chat.\nSUB2API_BASE_URL=\nSUB2API_API_KEY=\n';
 const MAX_IMAGE = 50 * 1024 * 1024;
@@ -203,12 +204,13 @@ function sameFile(a, b) {
 }
 
 // One POST only; the deadline covers serialization/upload, headers and response body.
-export async function generate({ prompt, aspectRatio = 'auto', background = 'auto',
+export async function generate({ prompt, model = DEFAULT_MODEL, aspectRatio = 'auto', background = 'auto',
   timeoutSeconds = 120, outputDir = 'generated-images', images = [], signal: callerSignal }) {
-  if (typeof prompt !== 'string' || !prompt.trim() || prompt.length > 20000 ||
+  if (typeof model !== 'string' || model.length > 100 || !/^gpt-image-[a-z0-9]+(?:[.-][a-z0-9]+)*$/.test(model) ||
+      typeof prompt !== 'string' || !prompt.trim() || prompt.length > 20000 ||
       !Object.hasOwn(SIZES, aspectRatio) || !['auto', 'opaque'].includes(background) ||
       !Number.isFinite(timeoutSeconds) || timeoutSeconds < 0.05 || timeoutSeconds > 120)
-    fail('invalid_input', 'Use a nonempty prompt (up to 20000 characters), a supported option and a 0.05–120 second timeout.');
+    fail('invalid_input', 'Use a gpt-image-* model ID, a nonempty prompt (up to 20000 characters), a supported option and a 0.05–120 second timeout.');
   if (callerSignal?.aborted) fail('cancelled', 'Request was cancelled before submission.');
   const config = readConfig();
   if (!config.SUB2API_BASE_URL || !config.SUB2API_API_KEY)
@@ -224,7 +226,7 @@ export async function generate({ prompt, aspectRatio = 'auto', background = 'aut
   let response;
   try {
     signal.throwIfAborted();
-    const fields = { model: 'gpt-image-2', prompt: prompt.trim(), n: 1,
+    const fields = { model, prompt: prompt.trim(), n: 1,
       size: SIZES[aspectRatio], quality: 'low', response_format: 'b64_json', background };
     const headers = { Authorization: `Bearer ${config.SUB2API_API_KEY}` };
     let requestBody;
@@ -260,7 +262,7 @@ export async function generate({ prompt, aspectRatio = 'auto', background = 'aut
       fail('save_failed', 'Generation completed but local save failed. Do not automatically submit again.');
     } finally { if (fd !== undefined) closeSync(fd); }
     return { path, contentType: image.contentType, width: image.width, height: image.height,
-      bytes: image.bytes.length, model: 'gpt-image-2', quality: 'low' };
+      bytes: image.bytes.length, model, quality: 'low' };
   } catch (error) {
     if (callerSignal?.aborted) fail('cancelled', 'Local request cancelled. Provider completion/charges may be unknown; do not automatically retry.');
     if (deadline.aborted) fail('timeout', 'Request timed out. Provider completion/charges may be unknown; do not automatically retry.');
@@ -277,10 +279,11 @@ const HELP = `Usage: node scripts/sub2api-imagegen.mjs init [--no-open]
        node scripts/sub2api-imagegen.mjs generate --prompt TEXT | --prompt-file FILE
          [--image /absolute/reference.png ...] (repeat --image for each file)
          [--aspect-ratio auto|1:1|9:16] [--background auto|opaque]
-         [--output-dir DIRECTORY] [--timeout-seconds 0.05..120]
+         [--model MODEL_ID] [--output-dir DIRECTORY] [--timeout-seconds 0.05..120]
 Config: ~/.sub2api-imagegen/.env (SUB2API_BASE_URL, SUB2API_API_KEY).
 Node.js 20.3+; macOS/Linux. No dependencies. One paid POST, no automatic retries.
-Text-to-image or local references via /images/edits; gpt-image-2, low quality, 1K.
+Text-to-image or local references via /images/edits; default gpt-image-2.6-sunburst, low quality, 1K.
+--model explicitly overrides the requested model; no automatic model fallback.
 References: at most 5 PNG/JPEG/WebP files, 20 MiB each, 50 MiB total (client limits).
 Only upload files explicitly authorized by the user. No URLs or masks.
 SIGINT/SIGTERM cancel local waiting, including upload.
@@ -298,7 +301,7 @@ export async function main(args) {
     return result;
   }
   if (command !== 'generate') fail('usage', 'Unknown command or option. Run --help.');
-  const allowed = ['--prompt', '--prompt-file', '--aspect-ratio', '--background', '--output-dir', '--timeout-seconds', '--image'];
+  const allowed = ['--prompt', '--prompt-file', '--aspect-ratio', '--background', '--output-dir', '--timeout-seconds', '--image', '--model'];
   const options = {};
   const images = [];
   for (let i = 0; i < rest.length; i += 2) {
@@ -320,7 +323,7 @@ export async function main(args) {
   process.once('SIGINT', cancel);
   process.once('SIGTERM', cancel);
   try {
-    return await generate({ prompt, aspectRatio: options['--aspect-ratio'], background: options['--background'],
+    return await generate({ prompt, model: options['--model'], aspectRatio: options['--aspect-ratio'], background: options['--background'],
       outputDir: options['--output-dir'], timeoutSeconds: options['--timeout-seconds'] === undefined ? undefined : Number(options['--timeout-seconds']),
       images, signal: controller.signal });
   } finally { process.off('SIGINT', cancel); process.off('SIGTERM', cancel); }

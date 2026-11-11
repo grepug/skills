@@ -184,7 +184,7 @@ test('repeat --image preserves multipart order and common options without sendin
   const { form, url } = api.requests[0];
   assert.equal(url, '/v1/images/edits');
   assert.deepEqual(Object.fromEntries([...form].filter(([, value]) => typeof value === 'string')), {
-    model: 'gpt-image-2', prompt: 'Combine the subject and palette', n: '1', size: '864x1536',
+    model: 'gpt-image-2.6-sunburst', prompt: 'Combine the subject and palette', n: '1', size: '864x1536',
     quality: 'low', response_format: 'b64_json', background: 'opaque',
   });
   const files = form.getAll('image[]');
@@ -313,6 +313,7 @@ test('mock API receives one supported request; output format and bytes match PNG
       '--background', 'opaque', '--output-dir', join(home, 'artifacts')]);
     assert.equal(result.code, 0, result.stderr);
     const output = JSON.parse(result.stdout);
+    assert.equal(output.model, 'gpt-image-2.6-sunburst');
     assert.equal(extname(output.path), `.${ext}`);
     assert.deepEqual(readFileSync(output.path), Buffer.from(fixtures[ext], 'base64'));
     assert.equal(output.width, 2); assert.equal(output.height, 3);
@@ -321,7 +322,7 @@ test('mock API receives one supported request; output format and bytes match PNG
     assert.equal(request.url, '/v1/images/generations');
     assert.equal(request.auth, `Bearer ${SECRET}`);
     assert.equal(request.method, 'POST');
-    assert.deepEqual(request.body, { model: 'gpt-image-2', prompt: 'A quiet room', n: 1,
+    assert.deepEqual(request.body, { model: 'gpt-image-2.6-sunburst', prompt: 'A quiet room', n: 1,
       size: ['auto', '1024x1024', '864x1536'][index], quality: 'low', response_format: 'b64_json', background: 'opaque' });
   }
   assert.equal(api.requests.length, 3);
@@ -470,4 +471,31 @@ test('a symlinked skill installation executes its CLI rather than silently exiti
   assert.equal(help.code, 0); assert.ok(help.stdout.includes('Usage:'));
   const initialized = await cli(home, ['init', '--no-open'], { script });
   assert.equal(initialized.code, 0); assert.equal(JSON.parse(initialized.stdout).created, true);
+});
+
+
+test('explicit model override reaches JSON and multipart and is reported without fallback', async t => {
+  for (const reference of [false, true]) {
+    const home = workspace(t);
+    const api = await server(t, (req, res) => image(res));
+    config(home, api.base);
+    const path = join(home, 'reference.png');
+    writeFileSync(path, Buffer.from(fixtures.png, 'base64'));
+    const result = await cli(home, ['generate', '--prompt', 'Diagnostic', '--model', 'gpt-image-2',
+      ...(reference ? ['--image', path] : [])]);
+    assert.equal(result.code, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).model, 'gpt-image-2');
+    assert.equal(api.requests.length, 1);
+    assert.equal(reference ? api.requests[0].form.get('model') : api.requests[0].body.model, 'gpt-image-2');
+  }
+});
+
+test('invalid model IDs are rejected before networking', async t => {
+  const home = workspace(t);
+  const api = await server(t, (req, res) => image(res));
+  config(home, api.base);
+  for (const model of ['', 'gpt-6', 'gpt-image-2 secret', 'https://example.com', 'gpt-image-' + 'a'.repeat(100)]) {
+    safeError(await cli(home, ['generate', '--prompt', 'Diagnostic', '--model', model]), 'invalid_input');
+  }
+  assert.equal(api.requests.length, 0);
 });

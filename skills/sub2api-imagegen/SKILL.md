@@ -1,6 +1,6 @@
 ---
 name: sub2api-imagegen
-description: 使用用户自备的 Sub2API base URL 和 API key 生成本地图片。适用于没有内置生图工具的 agent 调用 gpt-image-2 文生图，或上传用户指定的本地参考图进行生图；不支持蒙版局部编辑。
+description: 使用用户自备的 Sub2API base URL 和 API key 生成本地图片。适用于没有内置生图工具的 agent 调用 gpt-image-2.6-sunburst 文生图，或上传用户指定的本地参考图进行生图；不支持蒙版局部编辑。
 ---
 
 # Sub2API 生图与参考图
@@ -39,7 +39,9 @@ node scripts/sub2api-imagegen.mjs generate --prompt-file ./prompt.txt --output-d
 node scripts/sub2api-imagegen.mjs generate --prompt '保留图1的主体，采用图2的配色' --image /absolute/subject.png --image /absolute/palette.jpg --output-dir ./images
 ```
 
-无参考图时仍使用同步 `POST /v1/images/generations` JSON；有 `--image` 时使用 `POST /v1/images/edits`，通过 multipart 重复 `image[]` 按输入顺序上传，文件名使用通用名称而非本机路径。两种模式均为 `gpt-image-2`、`quality: low`、`n: 1`、base64 返回。`--aspect-ratio` 为 `auto`（默认）、`1:1`（1024×1024）或 `9:16`（864×1536）；`--background` 为 `auto`（默认）或 `opaque`。这些是请求尺寸，交付时以返回的实际宽高为准。没有蒙版局部编辑、远程图片 URL、透明背景、高分辨率、其他模型或服务 fallback。
+无参考图时仍使用同步 `POST /v1/images/generations` JSON；有 `--image` 时使用 `POST /v1/images/edits`，通过 multipart 重复 `image[]` 按输入顺序上传，文件名使用通用名称而非本机路径。两种模式默认模型均为 `gpt-image-2.6-sunburst`、`quality: low`、`n: 1`、base64 返回。`--aspect-ratio` 为 `auto`（默认）、`1:1`（1024×1024）或 `9:16`（864×1536）；`--background` 为 `auto`（默认）或 `opaque`。这些是请求尺寸，交付时以返回的实际宽高为准。没有蒙版局部编辑、远程图片 URL、透明背景、高分辨率或自动模型/服务 fallback。
+
+可用 `--model gpt-image-2` 显式使用部署支持的其他 `gpt-image-*` 模型；参数只校验名称格式，不证明服务支持。省略时使用 Sunburst，两项原有 `.env` 配置无需改动。结果 JSON 的 `model` 表示请求模型，不保证上游未映射。裸名 `gpt-image-2.6` 不是本次部署公布的模型 ID，不应猜测别名。更新仓库不会自动更新已安装的 skill，需按原安装方式更新脚本后默认值才生效。
 
 只上传用户明确指定并授权发送到其配置服务的图片；生图请求本身不授权读取或上传其他文件。已有授权足够时无需重复询问。`--image` 只接受绝对路径的普通本地 PNG/JPEG/WebP 文件，按实际容器识别格式；拒绝最终文件符号链接，解析父目录后以不跟随符号链接的方式打开并检查文件身份及读前/读后变化。文件在读后到提交间的再次修改不会改变已读取的上传快照。不要扫描目录挑图或把私有路径、图片字节/base64 写进日志。客户端限制为最多 5 张、每张不超过 20 MiB、合计不超过 50 MiB，并非所有上游部署的统一上限；代理可能有更低限制。
 
