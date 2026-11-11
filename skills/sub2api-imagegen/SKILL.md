@@ -36,7 +36,7 @@ node scripts/sub2api-imagegen.mjs wait --task-file /absolute/images/sub2api-task
 node scripts/sub2api-imagegen.mjs task-status --task-file /absolute/images/sub2api-task-UUID.json
 ```
 
-`--mode async` 使用原生 generations/async 或 edits/async，只提交一次收费 POST。接收后立即在 stderr 输出 taskId/taskFile；程序每 20 秒 GET 查询，最多前台等待 300 秒（提交阶段另有最长 120 秒超时）。成功自动下载、检查并保存本地图片。`task-status` 查询一次，完成时也会下载。没有指定 `--mode` 时保留同步兼容行为；不要在异步失败时自动回退同步。
+`--mode async` 使用原生 generations/async 或 edits/async，只提交一次收费 POST。接收后立即在 stderr 输出 taskId/taskFile；程序每 20 秒 GET 查询，最多前台等待 300 秒（提交阶段另有最长 120 秒超时）。成功自动下载、检查并保存本地图片。`task-status` 查询一次，完成时也会下载。没有指定 `--mode` 时默认异步；显式 `--mode sync` 才使用同步兼容行为；不要在异步失败时自动回退同步。
 
 `waiting_timeout` / `waiting_cancelled` 只结束本地等待，不取消服务端任务。用同一份 task file 运行 `wait` 恢复，不要重新 `generate`。任务文件权限 600，记录 task ID、原 API 地址、模型/尺寸/参考图数量和输出目录，不记录 API key、提示词、参考图内容或签名 URL；将它与图片一起保留。必须保持原 API 地址及同一 API key。服务端任务和签名链接通常 24 小时有效，过期需核查后台，不能自动重新计费。
 
@@ -54,7 +54,7 @@ node scripts/sub2api-imagegen.mjs generate --prompt-file ./prompt.txt --output-d
 node scripts/sub2api-imagegen.mjs generate --prompt '保留图1的主体，采用图2的配色' --image /absolute/subject.png --image /absolute/palette.jpg --output-dir ./images
 ```
 
-无参考图时仍使用同步 `POST /v1/images/generations` JSON；有 `--image` 时使用 `POST /v1/images/edits`，通过 multipart 重复 `image[]` 按输入顺序上传，文件名使用通用名称而非本机路径。两种模式默认模型均为 `gpt-image-2.6-sunburst`、`quality: low`、`n: 1`、base64 返回。`--aspect-ratio` 为 `auto`（默认）、`1:1`（1024×1024）或 `9:16`（864×1536）；`--background` 为 `auto`（默认）或 `opaque`。这些是请求尺寸，交付时以返回的实际宽高为准。没有蒙版局部编辑、远程图片 URL、透明背景、高分辨率或自动模型/服务 fallback。
+默认无参考图使用 `POST /v1/images/generations/async` JSON；有 `--image` 时使用 `POST /v1/images/edits/async`，通过 multipart 重复 `image[]` 按输入顺序上传，文件名使用通用名称而非本机路径。两种模式默认模型均为 `gpt-image-2.6-sunburst`、`quality: low`、`n: 1`；异步完成后下载私有结果 URL，同步模式返回 base64。`--aspect-ratio` 为 `auto`（默认）、`1:1`（1024×1024）或 `9:16`（864×1536）；`--background` 为 `auto`（默认）或 `opaque`。这些是请求尺寸，交付时以返回的实际宽高为准。没有蒙版局部编辑、远程图片 URL、透明背景、高分辨率或自动模型/服务 fallback。
 
 可用 `--model gpt-image-2` 显式使用部署支持的其他 `gpt-image-*` 模型；参数只校验名称格式，不证明服务支持。省略时使用 Sunburst，两项原有 `.env` 配置无需改动。结果 JSON 的 `model` 表示请求模型，不保证上游未映射。裸名 `gpt-image-2.6` 不是本次部署公布的模型 ID，不应猜测别名。更新仓库不会自动更新已安装的 skill，需按原安装方式更新脚本后默认值才生效。
 

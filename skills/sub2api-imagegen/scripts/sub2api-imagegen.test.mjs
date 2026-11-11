@@ -28,6 +28,8 @@ function config(home, base) {
     `SUB2API_BASE_URL=${base}\nSUB2API_API_KEY=${SECRET}\n`);
 }
 function cli(home, args, { script = CLI, env = {}, onStart } = {}) {
+  // This suite covers the explicitly selected synchronous compatibility mode.
+  if (args[0] === 'generate' && !args.includes('--mode')) args = [...args, '--mode', 'sync'];
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [script, ...args], {
       cwd: home, env: { ...process.env, HOME: home, ...env }, stdio: ['ignore', 'pipe', 'pipe'],
