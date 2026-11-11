@@ -27,6 +27,21 @@ node scripts/sub2api-imagegen.mjs status
 
 `ready: true` 只证明两项已填且 URL 格式可用，不验证密钥或余额。未齐全时退出码为 1；让用户在本地补全，不读回文件。仅生图工具进程会读取配置用于请求。
 
+## 异步生图（本部署推荐）
+
+```bash
+node scripts/sub2api-imagegen.mjs generate --mode async --prompt '雨后的安静庭院' --output-dir ./images
+# 参考图同样支持 --image /absolute/reference.png
+node scripts/sub2api-imagegen.mjs wait --task-file /absolute/images/sub2api-task-UUID.json
+node scripts/sub2api-imagegen.mjs task-status --task-file /absolute/images/sub2api-task-UUID.json
+```
+
+`--mode async` 使用原生 generations/async 或 edits/async，只提交一次收费 POST。接收后立即在 stderr 输出 taskId/taskFile；程序每 20 秒 GET 查询，最多前台等待 300 秒（提交阶段另有最长 120 秒超时）。成功自动下载、检查并保存本地图片。`task-status` 查询一次，完成时也会下载。没有指定 `--mode` 时保留同步兼容行为；不要在异步失败时自动回退同步。
+
+`waiting_timeout` / `waiting_cancelled` 只结束本地等待，不取消服务端任务。用同一份 task file 运行 `wait` 恢复，不要重新 `generate`。任务文件权限 600，记录 task ID、原 API 地址、模型/尺寸/参考图数量和输出目录，不记录 API key、提示词、参考图内容或签名 URL；将它与图片一起保留。必须保持原 API 地址及同一 API key。服务端任务和签名链接通常 24 小时有效，过期需核查后台，不能自动重新计费。
+
+`submission_unknown` 表示未可靠取得 task ID，可能已受理和计费，须查服务端日志，不得重发。`failed` 是服务端失败，仍可能已经发生上游计费。轮询网络故障仅重试 GET；下载请求绝不携带图片 API key、不跟随重定向。网络/磁盘错误保留任务恢复入口，已有本地文件不覆盖。服务重启未必恢复服务端内存任务，异步接口不是持久队列。
+
 ## 生成与交付
 
 根据用户意图确定提示词、尺寸和输出目录；已有信息足够时直接执行。每次调用只提交一张：
@@ -53,4 +68,4 @@ multipart 接口依据 [Sub2API 固定版本实现](https://github.com/Wei-Shaw/
 
 ## 离线验证
 
-`node --test scripts/sub2api-imagegen.test.mjs` 使用临时 HOME、`scripts/fixtures.json` 和本地 mock HTTP，验证初始化、独立复制、参考图 multipart 字节/顺序、上传前文件预检、错误、上传超时/取消及真实格式保存。`scripts/image.mjs` 仅检查图片容器。测试不读取真实配置、不打开真实编辑器、不调用付费接口。
+`node --test scripts/*.test.mjs` 使用临时 HOME、`scripts/fixtures.json` 和本地 mock HTTP，验证初始化、独立复制、参考图 multipart 字节/顺序、上传前文件预检、错误、上传超时/取消及真实格式保存。`scripts/image.mjs` 仅检查图片容器。测试不读取真实配置、不打开真实编辑器、不调用付费接口。

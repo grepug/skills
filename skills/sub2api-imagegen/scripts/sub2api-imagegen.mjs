@@ -24,7 +24,7 @@ const SIZES = { auto: 'auto', '1:1': '1024x1024', '9:16': '864x1536' };
 class Failure extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
-function fail(code, message) { throw new Failure(code, message); }
+export function fail(code, message) { throw new Failure(code, message); }
 function configPath() { return join(homedir(), CONFIG_DIR, '.env'); }
 
 // Intentionally a small data parser, never shell evaluation or environment expansion.
@@ -51,7 +51,7 @@ export function parseConfig(text) {
   return values;
 }
 
-function readConfig() {
+export function readConfig() {
   try {
     // Refuse symlinks so setup/status cannot follow an unexpected credential file.
     if (!lstatSync(join(homedir(), CONFIG_DIR)).isDirectory() || !lstatSync(configPath()).isFile())
@@ -115,7 +115,7 @@ function initialize(noOpen) {
   return result;
 }
 
-async function readBody(response, signal) {
+export async function readBody(response, signal) {
   if (Number(response.headers.get('content-length')) > MAX_BODY)
     fail('response_too_large', 'Provider response exceeds the size limit.');
   if (!response.body) fail('invalid_response', 'Provider returned no image body.');
@@ -155,7 +155,7 @@ function validateImage(body) {
 // Open only explicitly supplied files, never scan a directory or fetch image URLs.
 // Resolve parent aliases, refuse leaf symlinks, and check the opened inode plus
 // metadata before/after a bounded read to catch replacement or concurrent changes.
-function loadReferences(paths) {
+export function loadReferences(paths) {
   if (!Array.isArray(paths) || paths.length > MAX_REFERENCES)
     fail('invalid_references', 'Supply at most 5 explicitly authorized local reference files.');
   let total = 0;
@@ -279,7 +279,10 @@ const HELP = `Usage: node scripts/sub2api-imagegen.mjs init [--no-open]
        node scripts/sub2api-imagegen.mjs generate --prompt TEXT | --prompt-file FILE
          [--image /absolute/reference.png ...] (repeat --image for each file)
          [--aspect-ratio auto|1:1|9:16] [--background auto|opaque]
-         [--model MODEL_ID] [--output-dir DIRECTORY] [--timeout-seconds 0.05..120]
+         [--mode sync|async] [--model MODEL_ID] [--output-dir DIRECTORY] [--timeout-seconds 0.05..120]
+       node scripts/sub2api-imagegen.mjs wait --task-file FILE
+       node scripts/sub2api-imagegen.mjs task-status --task-file FILE
+Async: polls every 20 seconds for up to 300 seconds; resume with wait, never re-submit.
 Config: ~/.sub2api-imagegen/.env (SUB2API_BASE_URL, SUB2API_API_KEY).
 Node.js 20.3+; macOS/Linux. No dependencies. One paid POST, no automatic retries.
 Text-to-image or local references via /images/edits; default gpt-image-2.6-sunburst, low quality, 1K.
@@ -300,8 +303,16 @@ export async function main(args) {
     if (!result.ready) process.exitCode = 1;
     return result;
   }
+  if (command === 'wait' || command === 'task-status') {
+    if (rest.length !== 2 || rest[0] !== '--task-file') fail('usage', 'Use --task-file FILE.');
+    const { resumeTask } = await import('./async.mjs');
+    const controller = new AbortController(); const cancel = () => controller.abort();
+    process.once('SIGINT', cancel); process.once('SIGTERM', cancel);
+    try { return await resumeTask(rest[1], { wait: command === 'wait', signal: controller.signal }); }
+    finally { process.off('SIGINT', cancel); process.off('SIGTERM', cancel); }
+  }
   if (command !== 'generate') fail('usage', 'Unknown command or option. Run --help.');
-  const allowed = ['--prompt', '--prompt-file', '--aspect-ratio', '--background', '--output-dir', '--timeout-seconds', '--image', '--model'];
+  const allowed = ['--prompt', '--prompt-file', '--aspect-ratio', '--background', '--output-dir', '--timeout-seconds', '--image', '--model', '--mode'];
   const options = {};
   const images = [];
   for (let i = 0; i < rest.length; i += 2) {
@@ -323,17 +334,18 @@ export async function main(args) {
   process.once('SIGINT', cancel);
   process.once('SIGTERM', cancel);
   try {
-    return await generate({ prompt, model: options['--model'], aspectRatio: options['--aspect-ratio'], background: options['--background'],
+    if (options['--mode'] && !['sync', 'async'].includes(options['--mode'])) fail('usage', 'Use --mode sync|async.');
+    const run = options['--mode'] === 'async' ? (await import('./async.mjs')).generateAsync : generate;
+    return await run({ prompt, model: options['--model'], aspectRatio: options['--aspect-ratio'], background: options['--background'],
       outputDir: options['--output-dir'], timeoutSeconds: options['--timeout-seconds'] === undefined ? undefined : Number(options['--timeout-seconds']),
-      images, signal: controller.signal });
+      images, signal: controller.signal, onAccepted: task => process.stderr.write(JSON.stringify(task) + '\n') });
   } finally { process.off('SIGINT', cancel); process.off('SIGTERM', cancel); }
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
-  try { const result = await main(process.argv.slice(2)); if (result) console.log(JSON.stringify(result)); }
-  catch (error) {
+  main(process.argv.slice(2)).then(result => { if (result) console.log(JSON.stringify(result)); }).catch(error => {
     const safe = error instanceof Failure ? error : new Failure('local_error', 'Local operation failed. Check file permissions and runtime.');
     console.error(JSON.stringify({ error: safe.code, message: safe.message }));
     process.exitCode = safe.code === 'cancelled' ? 130 : 1;
-  }
+  });
 }
