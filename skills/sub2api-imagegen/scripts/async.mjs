@@ -1,5 +1,5 @@
 // Native asynchronous tasks: one paid submission, recoverable GET-only waiting.
-import { mkdirSync, openSync, closeSync, writeFileSync, readFileSync, renameSync, lstatSync, constants, accessSync } from 'node:fs';
+import { mkdirSync, openSync, closeSync, writeFileSync, readFileSync, renameSync, lstatSync, constants, accessSync, linkSync, unlinkSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
@@ -39,6 +39,21 @@ async function download(url,signal) {
  try{while(true){const {done,value}=await reader.read();if(done)break;n+=value.length;if(n>MAX)fail('download_too_large','Image exceeds 50 MiB.');chunks.push(value);}}finally{void reader.cancel().catch(()=>{});reader.releaseLock();}
  try{return inspectGeneratedImage(Buffer.concat(chunks,n));}catch{fail('invalid_image','Unsupported or incomplete image.');}
 }
+// Publish only a fully written sibling file. Hard-link creation refuses overwrite.
+export function publishImage(path, bytes, write=writeFileSync) {
+ const temporary=path+'.'+randomUUID()+'.partial';
+ try {
+  write(temporary,bytes,{flag:'wx',mode:0o600});
+  try {linkSync(temporary,path);}
+  catch(e) {
+   if(e.code!=='EEXIST')throw e;
+   if(!lstatSync(path).isFile() || !readFileSync(path).equals(bytes))
+    fail('save_conflict','Output exists with different contents. Do not regenerate.');
+  }
+ } finally {
+  try {unlinkSync(temporary);} catch(e) {if(e.code!=='ENOENT')throw e;}
+ }
+}
 export async function resumeTask(file,{wait=true,signal,waitMs=300000,pollMs=20000}={}) {
  file=resolve(file);const t=load(file);const c=configFor(t);
  if(t.status==='saved' || t.status==='failed')return result(t,file);
@@ -60,11 +75,10 @@ export async function resumeTask(file,{wait=true,signal,waitMs=300000,pollMs=200
     const image=await download(b.result.data[0].url,requestSignal);
     // Reserve a stable output name in the journal before writing. A retry never overwrites a file.
     t.path ??=join(t.outputDir,'sub2api-'+randomUUID()+'.'+ext[image.contentType]);save(file,t);
-    try{writeFileSync(t.path,image.bytes,{flag:'wx',mode:0o600});}
-    catch(e){if(e.code!=='EEXIST')throw e;const existing=readFileSync(t.path);if(!existing.equals(image.bytes))fail('save_conflict','Output exists with different contents. Do not regenerate.');}
+    publishImage(t.path,image.bytes);
     t.status='saved';t.image={contentType:image.contentType,width:image.width,height:image.height,bytes:image.bytes.length,model:t.model,quality:'low'};save(file,t);return result(t,file);
    }
-  } catch(e) {if(signal?.aborted)return {...result(t,file),status:'waiting_cancelled'};if(Date.now()>=end)return {...result(t,file),status:'waiting_timeout'};t.lastError=e.code||'poll_or_download_interrupted';save(file,t);if(!wait || !['network_error','poll_or_download_interrupted','poll_http_502','poll_http_503','poll_http_504','poll_http_429'].includes(t.lastError))return result(t,file);}
+  } catch(e) {if(signal?.aborted)return {...result(t,file),status:'waiting_cancelled'};if(Date.now()>=end)return {...result(t,file),status:'waiting_timeout'};t.lastError=(requestSignal.aborted || e.name==='TimeoutError')?'poll_timeout':(typeof e.code==='string'?e.code:'poll_or_download_interrupted');save(file,t);if(!wait || !['poll_timeout','network_error','poll_or_download_interrupted','poll_http_502','poll_http_503','poll_http_504','poll_http_429'].includes(t.lastError))return result(t,file);}
   if(!wait)return result(t,file);
   const delay=Math.min(pollMs,end-Date.now());if(delay<=0)return {...result(t,file),status:'waiting_timeout'};
   try{await sleep(delay,undefined,{signal});}catch{return {...result(t,file),status:'waiting_cancelled'};}

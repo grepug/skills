@@ -15,3 +15,28 @@ test('changed API origin is refused before sending credentials',async t=>{const 
 
 test('CLI async entry point submits once and exits on failed task',async t=>{const h=setup(t);const {createServer}=await import('node:http');const {spawn}=await import('node:child_process');let posts=0;const srv=createServer((req,res)=>{res.setHeader('Content-Type','application/json');if(req.method==='POST'){posts++;res.statusCode=202;res.end(JSON.stringify({task_id:'imgtask_cli'}));}else res.end(JSON.stringify({task_id:'imgtask_cli',status:'failed'}));});await new Promise(r=>srv.listen(0,'127.0.0.1',r));t.after(()=>srv.close());writeFileSync(join(h,'.sub2api-imagegen/.env'),`SUB2API_BASE_URL=http://127.0.0.1:${srv.address().port}\nSUB2API_API_KEY=test-secret\n`);const child=spawn(process.execPath,[new URL('./sub2api-imagegen.mjs',import.meta.url).pathname,'generate','--mode','async','--prompt','test','--output-dir',h],{env:{...process.env,HOME:h}});let out='',err='';child.stdout.on('data',b=>out+=b);child.stderr.on('data',b=>err+=b);const timer=setTimeout(()=>child.kill(),5000);const code=await new Promise(r=>child.on('close',r));clearTimeout(timer);assert.equal(code,0);assert.equal(posts,1);assert.equal(JSON.parse(out).status,'failed');assert.equal(JSON.parse(err).status,'accepted');});
 test('async references use edits multipart exactly once',async t=>{const h=setup(t);const image=join(h,'ref.png');writeFileSync(image,Buffer.from(png,'base64'));let posts=0;globalThis.fetch=async(url,o)=>{if(o.method==='POST'){posts++;assert.equal(url,'https://api.example.test/v1/images/edits/async');assert(o.body instanceof FormData);assert.equal(o.body.getAll('image[]').length,1);assert.equal(o.headers['Content-Type'],undefined);return new Response(JSON.stringify({task_id:'imgtask_edit'}),{status:202});}return json({task_id:'imgtask_edit',status:'failed'});};assert.equal((await generateAsync({prompt:'test',images:[image],outputDir:h})).status,'failed');assert.equal(posts,1);});
+
+test('partial local write cannot poison final path and retry publishes complete bytes',async t=>{
+ const h=setup(t),path=join(h,'image.png'),bytes=Buffer.from(png,'base64');
+ const {publishImage}=await import('./async.mjs');
+ assert.throws(()=>publishImage(path,bytes,(file,data,options)=>{writeFileSync(file,data.subarray(0,8),options);throw Object.assign(Error('disk full'),{code:'ENOSPC'});}));
+ assert(!readdirSync(h).includes('image.png'));
+ assert(!readdirSync(h).some(x=>x.endsWith('.partial')));
+ publishImage(path,bytes);assert.deepEqual(readFileSync(path),bytes);
+ publishImage(path,bytes);assert.deepEqual(readFileSync(path),bytes);
+ assert.throws(()=>publishImage(path,Buffer.from('different')),/different contents/);
+ assert.deepEqual(readFileSync(path),bytes);
+});
+test('individual query TimeoutError retries GET within foreground deadline',async t=>{
+ const h=setup(t),f=join(h,'task.json');
+ writeFileSync(f,JSON.stringify({version:1,endpoint:'https://api.example.test/v1/images/generations',outputDir:h,taskId:'imgtask_timeout',status:'processing'}));
+ let n=0;globalThis.fetch=async(u,o)=>{assert.notEqual(o.method,'POST');if(++n===1)throw new DOMException('request timed out','TimeoutError');return json({task_id:'imgtask_timeout',status:'failed'});};
+ const r=await resumeTask(f,{waitMs:1000,pollMs:1});assert.equal(r.status,'failed');assert.equal(n,2);
+});
+test('atomic publication refuses symlink destination without touching target',async t=>{
+ const h=setup(t),target=join(h,'user-file'),path=join(h,'image.png');
+ const {symlinkSync}=await import('node:fs');const {publishImage}=await import('./async.mjs');
+ writeFileSync(target,'user data');symlinkSync(target,path);
+ assert.throws(()=>publishImage(path,Buffer.from(png,'base64')),/different contents/);
+ assert.equal(readFileSync(target,'utf8'),'user data');
+});
