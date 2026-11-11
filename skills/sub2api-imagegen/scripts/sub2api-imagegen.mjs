@@ -282,6 +282,7 @@ const HELP = `Usage: node scripts/sub2api-imagegen.mjs init [--no-open]
          [--mode sync|async] [--model MODEL_ID] [--output-dir DIRECTORY] [--timeout-seconds 0.05..120]
        node scripts/sub2api-imagegen.mjs wait --task-file FILE
        node scripts/sub2api-imagegen.mjs task-status --task-file FILE
+Default mode: async; use --mode sync only when explicitly needed.
 Async: polls every 20 seconds for up to 300 seconds; resume with wait, never re-submit.
 Config: ~/.sub2api-imagegen/.env (SUB2API_BASE_URL, SUB2API_API_KEY).
 Node.js 20.3+; macOS/Linux. No dependencies. One paid POST, no automatic retries.
@@ -335,7 +336,7 @@ export async function main(args) {
   process.once('SIGTERM', cancel);
   try {
     if (options['--mode'] && !['sync', 'async'].includes(options['--mode'])) fail('usage', 'Use --mode sync|async.');
-    const run = options['--mode'] === 'async' ? (await import('./async.mjs')).generateAsync : generate;
+    const run = options['--mode'] !== 'sync' ? (await import('./async.mjs')).generateAsync : generate;
     return await run({ prompt, model: options['--model'], aspectRatio: options['--aspect-ratio'], background: options['--background'],
       outputDir: options['--output-dir'], timeoutSeconds: options['--timeout-seconds'] === undefined ? undefined : Number(options['--timeout-seconds']),
       images, signal: controller.signal, onAccepted: task => process.stderr.write(JSON.stringify(task) + '\n') });
