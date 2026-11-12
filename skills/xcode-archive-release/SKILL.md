@@ -1,135 +1,225 @@
 ---
 name: xcode-archive-release
-description: Bump version/build number, archive an Xcode project, upload to App Store Connect, then tag and push the release in git. Use when a user wants to release an iOS or macOS app to the App Store — tasks like "archive and upload to ASC", "bump version and release", "release version 2.1.0 build 42", "release from git tag", or "retry a failed upload".
+description: Bump version/build number, refresh signing, archive an Xcode project through asc, upload to App Store Connect, upload an internal development IPA through ipa-server, then tag App Store releases in git. Use when a user wants to release an iOS or macOS app to the App Store, upload a development IPA to an internal IPA server, or retry a failed release/upload.
 ---
 
 # Xcode Archive & Release
 
-Release an Apple app by bumping version/build metadata, archiving with Xcode, exporting and uploading to App Store Connect, then tagging the released `HEAD` in git.
+Release an Apple app by bumping version/build metadata, then either archiving/exporting through `asc` for App Store Connect or building a development IPA with `xcodebuildmcp` and uploading it to an internal IPA server. App Store Connect releases tag the released `HEAD` in git; internal IPA server uploads do not create release tags.
 
 ## Use when
 
-- The user wants to archive and upload an iOS or macOS app to App Store Connect
-- The user wants to release from an explicit version/build or infer them from a git tag
-- The user needs to retry an upload without rebuilding unless necessary
+- The user wants to archive and upload an iOS or macOS app to App Store Connect.
+- The user wants to build and upload an internal iOS development IPA to an IPA server.
+- The user wants to release from an explicit version/build or infer them from a git tag.
+- The user needs to retry a failed upload without rebuilding completed platform variants.
+- The user wants a scriptable signing refresh instead of manually archiving once in Xcode after an Xcode update.
 
 ## Prerequisites
 
-- macOS with Xcode and `xcodebuild` available
-- A signed Xcode project with a valid scheme
-- Access to the correct Apple Developer team and App Store Connect account
-- A clean understanding of the target project, scheme, platform list, version, and build number
+- macOS with Xcode selected.
+- `asc` available and authenticated (`asc auth status --validate`).
+- `xcodebuildmcp` available for project and scheme discovery.
+- A signed Xcode project with a valid scheme.
+- App Store Connect app ID and bundle identifier for App Store Connect release paths.
+- For internal IPA server uploads, the `ipa-server-usage` skill from `github.com/grepug/ipa-server` or its bundled `ipa_server.py` helper, plus an IPA server base URL from `--ipa-server-url`, `IPA_SERVER_URL`, or project `.env`.
+- A usable signing identity in the keychain. `asc signing fetch` downloads profiles and public certificates; it cannot recreate a missing private key.
 
-The main helper is `scripts/xcode-release.sh`. The bundled `assets/ExportOptions-AppStore.plist` sets `method=app-store` and `destination=upload`, so the default flow uploads directly to App Store Connect without a separate `altool` step. After a successful automatic upload, the script creates the annotated git tag `v<version>-<build>` on the current `HEAD` and pushes that exact tag to the branch's upstream remote, or `origin` if no upstream remote is configured.
+When changing this skill, edit the source skill folder in the skills repository rather than an installed copy.
 
 ## Confirm before acting
 
 Before running the script, confirm:
 
-- the Xcode project path
-- the scheme name
-- the version and build number, or that git tag inference is intended
-- the target platform list: any ordered subset of `ios`, `macos`, and `mac_catalyst`
-- whether the user wants a preflight-only validation run first
+- Xcode project path.
+- Scheme name.
+- App Store Connect app ID (`--app` or `ASC_APP_ID`).
+- Bundle identifier (`--bundle-id`) unless signing refresh is intentionally skipped.
+- Version and build number, or that git tag/archive-history inference is intended.
+- Target platform list: any ordered subset of `ios`, `macos`, and `mac_catalyst`.
+- Release path: `direct_upload` (default), `publish`, or `ipa_server`.
+- For `ipa_server`, infer the IPA server URL from `IPA_SERVER_URL` or project `.env` before asking; confirm the helper path only if the `ipa-server-usage` skill is not installed.
+- Whether a preflight-only validation run should happen first.
 
-For mixed-target or higher-risk projects, prefer a dry run with `--preflight-only` before touching source files.
+For mixed-target or higher-risk projects, prefer `--preflight-only` before touching source files.
 
 ## Workflow
 
 ### 1. Discover project details
 
-If the user hasn't specified `--project` or `--scheme`, find them:
+Use `xcodebuildmcp` for discovery:
 
 ```bash
-# List .xcodeproj files near the current directory
-find . -name "*.xcodeproj" -maxdepth 3
-
-# List available schemes for a project
-xcodebuild -project MyApp.xcodeproj -list
+xcodebuildmcp project-discovery discover-projects --scan-path . --max-depth 3
+xcodebuildmcp project-discovery list-schemes --project-path MyApp.xcodeproj
 ```
 
 ### 2. Confirm before running
 
-Present a dry-run summary to the user before executing:
+Present a dry-run summary before executing:
 
-```
-Project : MyApp.xcodeproj
-Scheme  : MyApp_iOS
-Version : 2.1.0  Build: 42
-Platform: ios (generic/platform=iOS)
-Archive : ~/.xcode-archive/MyApp/2.1.0-42/MyApp-ios.xcarchive
+```text
+Project      : MyApp.xcodeproj
+Scheme       : MyApp_iOS
+App          : 123456789
+Bundle ID    : com.example.myapp
+Version      : 2.1.0 (42)
+Release path : direct_upload
+Platform     : ios
+Archive      : ~/.xcode-archive/MyApp/2.1.0-42/MyApp-ios.xcarchive
+IPA path     : ~/.xcode-archive/MyApp/2.1.0-42/export-ios/MyApp-ios.ipa
 ```
 
-For complex or mixed-target projects (e.g. iOS + watchOS), run `--preflight-only` first to validate the scheme and export plist before any source files are touched:
+Preflight:
 
 ```bash
-xcode-release.sh --project MyApp.xcodeproj --scheme MyApp_iOS --version 2.1.0 --build 42 --preflight-only
+scripts/xcode-release.sh \
+  --project MyApp.xcodeproj \
+  --scheme MyApp_iOS \
+  --app 123456789 \
+  --bundle-id com.example.myapp \
+  --version 2.1.0 \
+  --build 42 \
+  --preflight-only
 ```
-
-Ask for confirmation, then proceed.
 
 ### 3. Run the script
 
-Run the bundled script:
+Direct upload is the default release path. It uses `asc xcode archive` and `asc xcode export --wait` with the bundled direct-upload export plist (`destination=upload`):
 
 ```bash
-chmod +x path/to/skills/xcode-archive-release/scripts/xcode-release.sh
+scripts/xcode-release.sh \
+  --project MyApp.xcodeproj \
+  --scheme MyApp_iOS \
+  --app 123456789 \
+  --bundle-id com.example.myapp \
+  --version 2.1.0 \
+  --build 42 \
+  --platform ios
+```
 
-# Infer version + build from the git tag on HEAD (tag must contain both components):
-path/to/skills/xcode-archive-release/scripts/xcode-release.sh \
-  --project  MyApp/MyApp.xcodeproj \
-  --scheme   MyApp_iOS \
-  --platform ios,macos
+Publish mode exports a local IPA, then runs `asc publish appstore`. It uploads and attaches only; it does not submit for review:
 
-# Or specify explicitly:
-path/to/skills/xcode-archive-release/scripts/xcode-release.sh \
-  --project  MyApp/MyApp.xcodeproj \
-  --scheme   MyApp_iOS \
-  --version  2.1.0 \
-  --build    42 \
-  [--platform ios|macos|mac_catalyst[,ios|macos|mac_catalyst...]] \
-  [--export-plist /custom/ExportOptions.plist]  \  # override bundled plist
-  [--preflight-only]           # validate setup without building or touching source
-  [--force]                    # re-archive even if archive already exists
+```bash
+scripts/xcode-release.sh \
+  --project MyApp.xcodeproj \
+  --scheme MyApp_iOS \
+  --app 123456789 \
+  --bundle-id com.example.myapp \
+  --version 2.1.0 \
+  --build 42 \
+  --platform ios \
+  --release-path publish
+```
+
+IPA server mode builds a Debug device app with `xcodebuildmcp`, packages a development IPA, then uploads it through the `ipa-server-usage` helper. It does not use `asc`, does not submit to App Store Connect, and does not create a git release tag:
+
+```bash
+scripts/xcode-release.sh \
+  --project MyApp.xcodeproj \
+  --scheme MyApp_iOS \
+  --bundle-id com.example.myapp \
+  --version 2.1.0 \
+  --build 42 \
+  --platform ios \
+  --release-path ipa_server \
+  --ipa-server-url https://ipa.example.com
+```
+
+If `IPA_SERVER_URL` is set in the environment or in the nearest project `.env`, omit `--ipa-server-url`.
+
+Useful options:
+
+```bash
+--profile-type IOS_APP_STORE          # override signing refresh profile type
+--signing-output ./signing-release    # override signing refresh output dir
+--skip-signing-refresh                # skip asc signing fetch/profile install
+--import-certificates                 # import downloaded .cer files into login keychain
+--export-plist ./Upload.plist         # direct_upload export plist override
+--local-export-plist ./Local.plist    # publish-mode export plist override
+--ipa-server-project "Project Name"   # override IPA server project metadata
+--ipa-server-helper ./ipa_server.py   # override ipa-server-usage helper path
+--device-configuration Debug          # ipa_server build configuration
+--force                               # rebuild even if archive/marker exists
 ```
 
 When multiple platforms are listed, the script builds them sequentially in the order provided. Version/build resolution happens once for the whole batch.
 
-**Git tag format** — must contain exactly one semver component and one integer component, separated by `-`, `+`, `/`, or `_`. Leading `v` is stripped.
+## Version and build inference
 
-| Tag                | Version     | Build |
-| ------------------ | ----------- | ----- |
-| `v2.1.0-42`        | 2.1.0       | 42    |
-| `2.1.0+42`         | 2.1.0       | 42    |
-| `2.1.0/42`         | 2.1.0       | 42    |
-| `v2.1.0`           | ✗ no build  | —     |
-| `release-2.1.0-42` | ✗ ambiguous | —     |
+Git tag format must contain exactly one semver component and one integer component, separated by `-`, `+`, `/`, or `_`. Leading `v` is stripped.
 
-If the tag is ambiguous or missing a component, the script errors with a message directing you to pass `--version` and `--build` explicitly.
+| Tag                | Version | Build |
+| ------------------ | ------- | ----- |
+| `v2.1.0-42`        | 2.1.0   | 42    |
+| `2.1.0+42`         | 2.1.0   | 42    |
+| `2.1.0/42`         | 2.1.0   | 42    |
+| `v2.1.0`           | invalid | -     |
+| `release-2.1.0-42` | invalid | -     |
 
-### 4. Create and push release tag
+If no parseable tag exists, the script scans `~/.xcode-archive/<ProjectName>/` for the highest prior `<version>-<build>` folder and increments the build. `--bumpPatch`, `--bumpMinor`, and `--bumpMajor` are valid only with archive-history inference.
 
-After a successful automatic upload, the script creates and pushes an annotated release tag:
+## Signing refresh
+
+Signing refresh runs before version edits and archive unless `--skip-signing-refresh` is set:
+
+```bash
+asc signing fetch \
+  --app "$APP" \
+  --bundle-id "$BUNDLE_ID" \
+  --profile-type "$PROFILE_TYPE" \
+  --create-missing \
+  --output "$SIGNING_OUTPUT" \
+  --format json
+```
+
+The script installs fetched `.mobileprovision` files into `~/Library/MobileDevice/Provisioning Profiles/`, optionally imports `.cer` files with `--import-certificates`, and fails early if `security find-identity -v -p codesigning` reports no usable signing identity.
+
+Default profile types:
+
+| Platform      | Profile type              |
+| ------------- | ------------------------- |
+| `ios`         | `IOS_APP_STORE`           |
+| `macos`       | `MAC_APP_STORE`           |
+| `mac_catalyst`| `MAC_CATALYST_APP_STORE`  |
+
+For `ipa_server`, signing is delegated to `xcodebuildmcp device build` with `-allowProvisioningUpdates`. This matches development IPA workflows where Xcode automatic signing creates or refreshes development profiles. The script packages the built `.app` into an IPA and verifies `Payload/<App>.app/embedded.mobileprovision` exists before upload.
+
+## IPA server uploads
+
+The IPA server upload path delegates HTTP behavior to the `ipa-server-usage` skill from `github.com/grepug/ipa-server`. Prefer installing that skill and letting the script discover its `ipa_server.py` helper. If discovery is not possible, pass `--ipa-server-helper`.
+
+Required inputs for `ipa_server`:
+
+- `--bundle-id`
+- `--ipa-server-url`, `IPA_SERVER_URL`, or nearest project `.env` containing `IPA_SERVER_URL`
+- `--platform ios`
+- version/build, or tag/archive-history inference
+
+The helper uploads with:
+
+```bash
+python3 "$IPA_SERVER_HELPER" \
+  --server "$IPA_SERVER_URL" \
+  upload \
+  --ipa "$IPA_PATH" \
+  --project "$IPA_SERVER_PROJECT" \
+  --version "$VERSION" \
+  --build-number "$BUILD" \
+  --bundle-id "$BUNDLE_ID"
+```
+
+## Git tag
+
+After a successful App Store Connect upload, the script creates and pushes an annotated release tag:
 
 - tag format: `v<version>-<build>`
 - example: `v2.1.0-42`
 - tag message: `Release 2.1.0 (42)`
 
-The tag is created on the current `HEAD`. The script does **not** create a git commit for the version/build edits it made during the release. If those edits are still uncommitted, the tag still points at the pre-existing `HEAD` commit.
+The tag is created on the current `HEAD`. The script does not create a git commit for version/build edits. If the tag already exists locally or on the remote, the script fails without moving or force-pushing the tag.
 
-If the tag already exists locally or on the remote, the script fails without moving or force-pushing the tag.
-
-### 5. Report results
-
-On success, the script prints the artifact path. Tell the user:
-
-- Where artifacts are: `~/.xcode-archive/<project-name>/<version>-<build>/`
-- To check App Store Connect → TestFlight or the Builds tab to confirm the upload processed
-- Which git tag was created and which remote it was pushed to
-
-The platform variant is `ios`, `macos`, or `mac_catalyst`. The script keeps the same version/build folder and makes the archive, export, DerivedData, and log names platform-specific.
-
-If the archive succeeds but automatic export/upload hits a missing App Store provisioning profile for the app’s bundle ID, the script opens the `.xcarchive` in Xcode Organizer instead. In that case, tell the user the archive is ready and they should upload it to App Store Connect manually from Organizer.
+The `ipa_server` release path skips git release tags because it is an internal development upload, not an immutable App Store release marker.
 
 ## Output
 
@@ -138,80 +228,41 @@ Successful runs produce:
 - a versioned archive folder at `~/.xcode-archive/<ProjectName>/<version>-<build>/`
 - the `.xcarchive`
 - exported artifacts under `export-<platform-variant>/`
-- logs under `logs-<platform-variant>/archive.log` and `logs-<platform-variant>/export.log`
+- logs under `logs-<platform-variant>/`
+- fetched signing assets under `signing-<platform-variant>/`
 - a per-platform completion marker used to skip already completed variants on rerun
-- an annotated git tag `v<version>-<build>` pushed to the configured remote after automatic upload succeeds
+- an annotated git tag `v<version>-<build>` pushed to the configured remote after upload succeeds
 
 The user should verify the build appears in App Store Connect after processing finishes.
 
-## Retry a Failed Upload
+## Retry a failed upload
 
-If one platform in a batch fails (network issue, ASC outage, etc.):
+If one platform in a batch fails:
 
-1. If the original run already pinned version/build explicitly, or inferred them from a git tag, run the **exact same command** — already completed platforms are skipped, and incomplete platforms are retried in sequence.
-2. If the original run inferred version/build from archive history, use the retry command printed on failure instead. That retry command pins the resolved `--version` and `--build`, so it retries the same release instead of advancing to the next build number.
-3. Use `--force` only if you need to rebuild all listed platforms from scratch (e.g. wrong code was archived).
+1. If the original run pinned version/build explicitly or inferred them from a git tag, run the exact same command.
+2. If the original run inferred version/build from archive history, use the retry command printed on failure.
+3. Use `--force` only when the archive or signing state must be rebuilt from scratch.
 
-If upload succeeded but tag creation or tag push failed, do **not** re-run the full release command blindly. The binary may already be uploaded, and a retry can fail with duplicate upload or duplicate tag errors. Use the script's tag-specific failure message to decide whether to create or push the tag manually.
-
-## Output Folder Structure
-
-```
-~/.xcode-archive/<ProjectName>/
-└── <version>-<build>/              e.g. 2.1.0-42/
-    ├── MyApp-ios.xcarchive         iOS archive
-    ├── MyApp-macos.xcarchive       macOS archive when present
-    ├── MyApp-mac_catalyst.xcarchive Catalyst archive when present
-    ├── DerivedData-ios/            isolated DerivedData per platform variant
-    ├── DerivedData-macos/
-    ├── DerivedData-mac_catalyst/
-    ├── export-ios/                 export output
-    │   ├── MyApp.ipa
-    │   ├── ExportOptions.plist     copy of the options used
-    │   └── UploadSessionLogs/      ASC upload diagnostic logs
-    ├── export-macos/
-    ├── export-mac_catalyst/
-    ├── logs-ios/
-    │   ├── archive.log             full xcodebuild archive output
-    │   └── export.log              full xcodebuild -exportArchive output
-    ├── logs-macos/
-    ├── logs-mac_catalyst/
-    ├── .completed-ios
-    ├── .completed-macos
-    └── .completed-mac_catalyst
-```
-
-Each run has its own versioned folder, and each platform variant gets its own artifact names inside that folder. That lets the same version/build coexist across platforms without overwriting the archive.
+If upload succeeded but tag creation or tag push failed, do not rerun the full release command blindly. Use the tag-specific failure message to create or push the tag manually.
 
 ## Bundled files
 
 - `scripts/xcode-release.sh` — main release workflow
-- `assets/ExportOptions-AppStore.plist` — default App Store export settings
+- `assets/ExportOptions-AppStore.plist` — direct-upload App Store export settings
+- `assets/ExportOptions-AppStore-Local.plist` — local IPA App Store export settings for publish mode
+- `github.com/grepug/ipa-server/skills/ipa-server-usage` — referenced helper skill for internal IPA server uploads
 
 ## Troubleshooting
 
-| Symptom                                                               | Fix                                                                                                                                                            |
-| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Code signing failed`                                                 | Open Xcode → project target → Signing & Capabilities, ensure a valid provisioning profile and team are set for Release                                         |
-| `error: exportArchive No profiles for '<bundle-id>' were found`       | Treat this as an Organizer handoff: open the generated `.xcarchive` in Xcode Organizer and tell the user to upload it to App Store Connect manually            |
-| `No schemes found`                                                    | Run `xcodebuild -project MyApp.xcodeproj -list` to list valid scheme names; or use `--preflight-only` to check before running                                  |
-| `ERROR ITMS-90189: Duplicate binary upload`                           | The build number already exists in ASC. Increment `--build`                                                                                                    |
-| `Duplicate platform in --platform list`                               | Remove repeated platform entries. Each batch should list each of `ios`, `macos`, and `mac_catalyst` at most once                                              |
-| `Archive not found` on retry                                          | Check the path `~/.xcode-archive/<name>/<version>-<build>/<name>-<platform-variant>.xcarchive` exists; if not, re-run with the same `--platform` list used for the original archive |
-| `PlistBuddy: Entry, ":CFBundleShortVersionString", Does Not Exist`    | Harmless — the Info.plist doesn't have that key (modern Xcode projects); the `project.pbxproj` patch handles it                                                |
-| `No git tag on HEAD`                                                  | HEAD isn't tagged. Create a tag (`git tag v2.1.0-42 && git push --tags`) or pass `--version` and `--build` explicitly                                          |
-| `Tag(s) on HEAD ... don't contain one semver + one integer component` | Tag is missing the build number (e.g. `v2.1.0`) or has an unrecognised part (e.g. `release-2.1.0-42`). Rename the tag or pass `--version`/`--build` explicitly |
-| Script fails with `✗ FAILED at step: archive`                         | Check `~/.xcode-archive/<name>/<ver>-<build>/logs-<platform-variant>/archive.log` for the root cause; the failure block prints the last 20 lines automatically |
-| `Release tag already exists locally`                                  | The current repo already has `v<version>-<build>`. Do not force-move it; use a new build number if this is a new release attempt                               |
-| `Release tag already exists on remote`                                | The remote already has `v<version>-<build>`. Treat the tag as immutable; verify whether the release already happened before retrying                            |
-| `✗ FAILED at step: tag` after upload succeeded                        | The app upload completed but tagging did not. Follow the printed recovery command to push the local tag, or resolve the duplicate-tag/git-remote issue manually |
-
-## ExportOptions Customization
-
-The bundled plist (`assets/ExportOptions-AppStore.plist`) works for standard App Store uploads. To customize (e.g. add `teamID`, `signingStyle`, or `iCloudContainerEnvironment`), copy it to the project folder and pass `--export-plist`:
-
-```bash
-cp path/to/skills/xcode-archive-release/assets/ExportOptions-AppStore.plist ./ExportOptions.plist
-# edit as needed
-xcode-release.sh ... --export-plist ./ExportOptions.plist
-```
+| Symptom | Fix |
+| ------- | --- |
+| `--app is required` | Pass `--app` or set `ASC_APP_ID`. |
+| `--bundle-id is required` | Pass `--bundle-id`, or use `--skip-signing-refresh` only when signing assets are already installed. |
+| `--ipa-server-url is required` | Pass `--ipa-server-url`, export `IPA_SERVER_URL`, or add `IPA_SERVER_URL` to the project `.env`. |
+| `ipa-server-usage helper not found` | Install the skill from `github.com/grepug/ipa-server` or pass `--ipa-server-helper`. |
+| Packaged IPA missing `embedded.mobileprovision` | Fix development signing for the device build; OTA installation needs an embedded provisioning profile. |
+| `asc signing fetch` fails | Check `asc auth status --validate`, bundle ID, app ID, and profile type. |
+| No usable code signing identity | Install the distribution certificate with its private key; public `.cer` files alone are not enough. |
+| Archive or export fails after signing refresh | Check `logs-<platform>/archive.log` or `logs-<platform>/export.log`; retry with `--force` after fixing signing or project settings. |
+| Duplicate binary upload | Increment `--build`. |
+| Release tag already exists | Treat tags as immutable; use a new build number for a new release attempt. |
